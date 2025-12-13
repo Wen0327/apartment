@@ -1,0 +1,2506 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>錦繡公寓</title>
+    <style>
+        :root {
+            --bg-color: #020202;
+            --text-color: #b0b0b0; 
+            --highlight-color: #4caf50;
+            --danger-color: #d32f2f;
+            --warning-color: #ff9800;
+            --dim-color: #444;
+            --panel-bg: #0a0a0a;
+            --border-color: #333;
+            --header-height: 70px;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: "Courier New", Courier, monospace;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: filter 0.5s ease;
+        }
+
+        /* --- 視覺增強：暗角與雜訊 --- */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle, rgba(0,0,0,0) 50%, rgba(0,0,0,0.8) 100%);
+            pointer-events: none;
+            z-index: 998;
+        }
+
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 999;
+            animation: flicker 0.15s infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.92; }
+            50% { opacity: 0.88; }
+            100% { opacity: 0.92; }
+        }
+
+        /* --- 特效動畫 --- */
+        @keyframes damage-flash {
+            0% { box-shadow: inset 0 0 0 transparent; background-color: rgba(255,0,0,0); }
+            20% { box-shadow: inset 0 0 150px var(--danger-color); background-color: rgba(50,0,0,0.2); }
+            100% { box-shadow: inset 0 0 0 transparent; background-color: transparent; }
+        }
+
+        @keyframes sanity-flash {
+            0% { filter: invert(0); transform: scale(1); }
+            10% { filter: invert(0.5); transform: scale(1.02) skewX(5deg); }
+            20% { filter: invert(0); transform: scale(1); }
+            30% { filter: invert(0.2); transform: scale(0.98) skewX(-5deg); }
+            100% { filter: invert(0); transform: scale(1); }
+        }
+
+        .effect-damage { animation: damage-flash 0.4s ease-out; }
+        .effect-sanity { animation: sanity-flash 0.5s ease-out; }
+        
+        /* --- 標題欄 --- */
+        header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            height: var(--header-height);
+            padding: 5px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            z-index: 20;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .status-group {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        @media (min-width: 600px) {
+            .status-group {
+                flex-direction: row;
+                gap: 20px;
+                align-items: center;
+            }
+        }
+
+        .status-item span { font-weight: bold; transition: color 0.3s; }
+        .status-sanity { color: #29b6f6; text-shadow: 0 0 8px rgba(41, 182, 246, 0.4); }
+        .status-stamina { color: #9ccc65; text-shadow: 0 0 8px rgba(156, 204, 101, 0.4); }
+        .status-corruption { color: #ef5350; text-shadow: 0 0 8px rgba(239, 83, 80, 0.4); }
+
+        /* --- 主遊戲區域 --- */
+        #game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #game-log {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            scroll-behavior: auto;
+            border-left: 1px solid #222;
+            border-right: 1px solid #222;
+            background: #050505;
+            text-shadow: 0 0 2px rgba(255,255,255,0.1); 
+            padding-bottom: 60px; /* 防止被計時條遮擋 */
+        }
+
+        .log-entry { margin-bottom: 15px; line-height: 1.6; border-left: 2px solid transparent; padding-left: 8px;}
+        .log-entry.system { color: #666; font-style: italic; border-color: #444; font-size: 0.9em; }
+        .log-entry.event { color: var(--text-color); }
+        .log-entry.danger { color: #e53935; border-color: #b71c1c; background: linear-gradient(90deg, rgba(183, 28, 28, 0.1), transparent); text-shadow: 0 0 8px rgba(229, 57, 53, 0.4); }
+        .log-entry.success { color: #66bb6a; border-color: #2e7d32; text-shadow: 0 0 5px rgba(102, 187, 106, 0.3); }
+        .log-entry.insane { color: #bf360c; font-family: "Impact", sans-serif; letter-spacing: 1px; transform: skewX(-5deg); text-shadow: 2px 2px 0px #000; }
+        
+        .cursor::after {
+            content: '█';
+            animation: cursor-blink 0.8s infinite;
+            margin-left: 2px;
+            color: var(--highlight-color);
+            vertical-align: middle;
+        }
+        @keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* --- 恐慌計時條 (Panic Bar) --- */
+        #panic-container {
+            position: relative;
+            width: 100%;
+            height: 6px;
+            background: #222;
+            margin-bottom: 0;
+            display: none; /* 預設隱藏 */
+            z-index: 50;
+        }
+        #panic-bar {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #4caf50, #ff9800, #f44336);
+            transform-origin: left;
+            transition: width 0.1s linear;
+        }
+        #panic-text {
+            position: absolute;
+            top: -25px;
+            right: 10px;
+            color: #d32f2f;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            animation: blink 0.5s infinite;
+        }
+
+        /* --- 選項按鈕區 --- */
+        #choices-area {
+            background-color: #0c0c0c;
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            max-height: 45vh; 
+            overflow-y: auto; 
+            flex-shrink: 0;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.9);
+            opacity: 0; 
+            transition: opacity 0.5s ease;
+        }
+        
+        #choices-area.show { opacity: 1; }
+
+        button {
+            background: linear-gradient(90deg, #111, #0a0a0a);
+            color: #ccc;
+            border: 1px solid #333;
+            padding: 16px 20px;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: all 0.15s;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: #333;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #1a1a1a;
+            color: #fff;
+            padding-left: 25px;
+            border-color: #555;
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+
+        button:hover:not(:disabled)::before {
+            background: var(--highlight-color);
+            width: 6px;
+            box-shadow: 0 0 10px var(--highlight-color);
+        }
+
+        button:active:not(:disabled) { transform: scale(0.99); }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            filter: grayscale(100%);
+        }
+
+        /* --- 視覺欺詐特效 (Hallucinations) --- */
+        .btn-shake { animation: btn-shake 0.5s infinite; }
+        @keyframes btn-shake {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-2px, 2px); }
+            50% { transform: translate(2px, -2px); }
+            75% { transform: translate(-2px, -2px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .btn-blur { filter: blur(1.5px); transition: 0.2s; }
+        .btn-blur:hover { filter: blur(0); }
+
+        .btn-glitch-text { color: transparent !important; text-shadow: 2px 0 #f00, -2px 0 #0ff; position: relative; }
+
+        button.choice-rest:hover::before { background: #29b6f6; box-shadow: 0 0 10px #29b6f6; }
+        
+        button.choice-insane { 
+            border: 1px dashed var(--danger-color); 
+            color: var(--danger-color); 
+            animation: textShake 2s infinite;
+        }
+
+        #action-bar { display: flex; gap: 8px; }
+        .action-btn {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #ddd;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .action-btn:hover { background: #333; border-color: #888; color: #fff; }
+
+        /* --- 啟動遮罩 --- */
+        #start-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: #fff;
+            cursor: pointer;
+        }
+        #start-overlay h1 { color: var(--danger-color); text-shadow: 0 0 10px red; letter-spacing: 5px; text-align: center;}
+        #start-overlay p { color: #888; animation: blink 1.5s infinite; margin-top: 10px;}
+        
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        /* --- 模態視窗 --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: var(--header-height); 
+            left: 0;
+            width: 100%;
+            height: calc(100% - var(--header-height));
+            background: rgba(0,0,0,0.92);
+            z-index: 100;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 20px;
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-content {
+            background: #0f0f0f;
+            border: 1px solid var(--border-color);
+            padding: 25px;
+            width: 90%;
+            max-width: 650px;
+            max-height: 90%;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,1);
+        }
+
+        .close-btn {
+            position: sticky;
+            top: 0;
+            float: right;
+            background: #222;
+            padding: 2px 12px;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10;
+            border: 1px solid #555;
+        }
+
+        h2 { margin-top: 0; border-bottom: 1px solid #444; padding-bottom: 10px; color: var(--highlight-color); text-transform: uppercase; letter-spacing: 2px;}
+        
+        .rule-list { padding-left: 20px; margin: 0; }
+        .rule-list li { margin-bottom: 18px; padding: 10px; border-left: 3px solid #333; line-height: 1.5; background: rgba(255,255,255,0.02); transition: 0.3s; }
+        .rule-list li:hover { background: rgba(255,255,255,0.05); border-left-color: #555; }
+        
+        .rule-corrupted { 
+            color: var(--danger-color); 
+            font-weight: bold; 
+            background: rgba(244, 67, 54, 0.05); 
+            display: block; 
+            padding: 5px; 
+            border: 1px dashed rgba(244, 67, 54, 0.3);
+        }
+        
+        .rule-scratched { text-decoration: line-through; color: var(--dim-color); opacity: 0.6; }
+
+        .scribble {
+            font-family: "Impact", sans-serif;
+            color: #ef5350;
+            transform: rotate(-2deg);
+            display: inline-block;
+            text-shadow: 1px 1px 0 #000;
+        }
+        
+        @keyframes textShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+        
+        .glitch-text { position: relative; }
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.7;
+        }
+        .glitch-text::before { color: #f0f; transform: translate(-2px, 0); animation: glitch-anim-1 2s infinite linear alternate-reverse; }
+        .glitch-text::after { color: #0ff; transform: translate(2px, 0); animation: glitch-anim-2 3s infinite linear alternate-reverse; }
+
+        @keyframes glitch-anim-1 { 0% { clip-path: inset(20% 0 80% 0); } 100% { clip-path: inset(80% 0 20% 0); } }
+        @keyframes glitch-anim-2 { 0% { clip-path: inset(10% 0 90% 0); } 100% { clip-path: inset(90% 0 10% 0); } }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 0; border: 1px solid #111; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .game-over-screen { text-align: center; padding: 20px; animation: fadeIn 2s; }
+        .game-over-title { font-size: 2.5rem; color: var(--danger-color); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 20px var(--danger-color); }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+/* --- 新增：CCTV 監控系統樣式 --- */
+#cctv-modal .modal-content {
+    background: #001100; /* 深綠色背景 */
+    border: 2px solid #0f0;
+    box-shadow: 0 0 20px #0f0, inset 0 0 50px #000;
+    color: #0f0;
+    font-family: "VT323", monospace; /* 如果有引入字體最好，沒有就用預設 */
+    text-shadow: 0 0 5px #0f0;
+    max-width: 800px;
+}
+
+#cctv-screen {
+    width: 100%;
+    height: 300px;
+    background: #000;
+    border: 1px solid #004400;
+    margin-bottom: 15px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-image: repeating-linear-gradient(0deg, transparent, transparent 1px, #001100 1px, #001100 2px);
+}
+
+.cctv-noise {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.15"/%3E%3C/svg%3E');
+    pointer-events: none;
+    z-index: 5;
+    animation: staticNoise 0.2s infinite;
+}
+
+#cctv-content {
+    z-index: 2;
+    text-align: center;
+    font-size: 1.2rem;
+    padding: 20px;
+}
+
+.cam-btn-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.cam-btn {
+    background: #002200;
+    border: 1px solid #006600;
+    color: #00aa00;
+    padding: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: 0.2s;
+}
+.cam-btn:hover { background: #004400; color: #0f0; box-shadow: 0 0 10px #0f0; }
+.cam-btn.active { background: #0f0; color: #000; font-weight: bold; }
+.cam-btn.danger-cam { border-color: red; color: red; animation: blink 1s infinite; }
+
+/* --- 新增：UI 欺詐特效 --- */
+.btn-runaway {
+    position: absolute !important; /* 強制絕對定位以便移動 */
+    transition: top 0.1s, left 0.1s;
+    z-index: 1000;
+    background: #220000 !important; /* 警示色 */
+    border-color: red !important;
+}
+
+.fake-stat {
+    animation: stat-glitch 0.3s infinite;
+    color: red !important;
+}
+
+@keyframes stat-glitch {
+    0% { opacity: 1; transform: translate(0); }
+    20% { opacity: 0.8; transform: translate(-2px, 2px); }
+    40% { opacity: 1; transform: translate(2px, -1px); }
+    60% { opacity: 0.9; transform: translate(-1px, 2px); }
+    80% { opacity: 1; transform: translate(1px, -2px); }
+    100% { opacity: 1; transform: translate(0); }
+}
+
+#btn-cctv {
+    border: 1px solid #0f0;          /* 亮綠色邊框 */
+    color: #0f0;                     /* 亮綠色文字 */
+    background: rgba(0, 50, 0, 0.6); /* 深綠色半透明背景 */
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.2); /* 微微發光 */
+    font-weight: bold;
+    margin-right: 10px;               /* 跟右邊的按鈕拉開一點距離 */
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+#btn-cctv:hover {
+    background: #0f0;                /* 滑鼠移過去變全綠 */
+    color: #000;                     /*文字變黑 */
+    box-shadow: 0 0 20px #0f0;       /* 強烈發光 */
+    transform: scale(1.05);          /* 稍微放大 */
+}
+
+    </style>
+</head>
+<body>
+
+<div id="start-overlay" onclick="initAudioAndStart()">
+    <h1>錦繡公寓<br><span style="font-size:0.5em; color:white;">遵守規則</span></h1>
+    <p>[ 點擊螢幕連接神經介面 ]</p>
+    <div style="font-size: 0.8em; margin-top: 20px; color: #555;">警告：包含強烈的心理恐怖元素與時間壓力</div>
+</div>
+
+<div class="vignette"></div>
+<div class="crt-overlay"></div> 
+
+<header>
+    <div class="status-group">
+        <div>Day: <span id="disp-day">1</span></div>
+        <div>Time: <span id="disp-time">00:00</span></div>
+    </div>
+    <div class="status-group">
+        <div class="status-item status-sanity">精神: <span id="disp-sanity">冷靜</span></div>
+        <div class="status-item status-stamina">體力: <span id="disp-stamina">充沛</span></div>
+        <div class="status-item status-corruption">污染: <span id="disp-corruption">正常</span></div>
+    </div>
+    <div id="action-bar">
+<button class="action-btn" id="btn-cctv" onclick="CCTVSystem.open()">[ 監控系統 ]</button>
+        <button class="action-btn" onclick="openModal('rules-modal')">守則</button>
+    <button class="action-btn" onclick="openModal('clues-modal')">筆記</button>
+    </div>
+</header>
+
+<div id="cctv-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('cctv-modal')">&times;</span>
+        <h2 style="border-bottom: 2px dashed #0f0; color: #0f0;">SECURITY_FEED_v0.9</h2>
+        
+        <div id="cctv-screen">
+            <div class="cctv-noise"></div>
+            <div id="cctv-overlay" style="position:absolute; top:10px; left:10px; color:#0f0; font-size:0.8rem;">REC ●</div>
+            <div id="cctv-content">系統待機中...<br>選擇攝像頭接入信號</div>
+        </div>
+
+        <div class="cam-btn-group" id="cctv-controls">
+            </div>
+        
+        <div style="margin-top: 15px; border-top: 1px solid #004400; padding-top: 10px; font-size: 0.8rem; color: #008800;">
+            警告：長時間注視監控畫面可能導致精神指數下降。<br>發現異常請立即執行 [更新協議]。
+        </div>
+    </div>
+</div>
+
+<main id="game-container">
+    <div id="game-log"></div>
+    <div id="panic-container">
+        <div id="panic-text">PANIC</div>
+        <div id="panic-bar"></div>
+    </div>
+    <div id="choices-area"></div>
+</main>
+
+<div id="rules-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('rules-modal')">&times;</span>
+        <h2>物業安全管理規範 (v2.4)</h2>
+        <div style="font-size:0.8em; color:#666; margin-bottom:10px;">請嚴格執行以確保勞工安全與權益。</div>
+        <ul id="rules-list" class="rule-list"></ul>
+    </div>
+</div>
+
+<div id="clues-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('clues-modal')">&times;</span>
+        <h2>調查筆記與物品</h2>
+        <ul id="clues-list" class="rule-list">
+            <li style="color: #666;">目前口袋空空如也。</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    // --- 音效系統 (Web Audio API) ---
+    const SoundSystem = {
+        ctx: null,
+        masterGain: null,
+        droneOsc: null,
+        heartbeatOsc: null,
+        isMuted: false,
+
+        init: function() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.6; 
+                this.masterGain.connect(this.ctx.destination);
+                this.startAmbience();
+            } catch (e) {
+                console.warn("Web Audio API not supported");
+            }
+        },
+
+        startAmbience: function() {
+            if (!this.ctx) return;
+            const osc1 = this.ctx.createOscillator();
+            const osc2 = this.ctx.createOscillator();
+            const filter = this.ctx.createBiquadFilter();
+            const droneGain = this.ctx.createGain();
+
+            osc1.type = 'sawtooth';
+            osc1.frequency.value = 55; 
+            osc2.type = 'sine';
+            osc2.frequency.value = 58; 
+
+            filter.type = 'lowpass';
+            filter.frequency.value = 180; 
+
+            droneGain.gain.value = 0.15; 
+
+            osc1.connect(filter);
+            osc2.connect(filter);
+            filter.connect(droneGain);
+            droneGain.connect(this.masterGain);
+
+            osc1.start();
+            osc2.start();
+        },
+
+        play: function(type) {
+            if (!this.ctx || this.isMuted) return;
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+
+            const osc = this.ctx.createOscillator();
+            const gainNode = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+
+            osc.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(this.masterGain);
+
+            const now = this.ctx.currentTime;
+
+            switch (type) {
+                case 'type': 
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(800 + Math.random() * 200, now);
+                    filter.type = 'highpass';
+                    filter.frequency.value = 2000;
+                    gainNode.gain.setValueAtTime(0.05, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                    break;
+                case 'hover': 
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    gainNode.gain.setValueAtTime(0.05, now);
+                    gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                    break;
+                case 'click': 
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+                    gainNode.gain.setValueAtTime(0.2, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                    break;
+                case 'damage': 
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(100, now);
+                    osc.frequency.exponentialRampToValueAtTime(20, now + 0.3);
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 300;
+                    gainNode.gain.setValueAtTime(0.5, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                    break;
+                case 'glitch': 
+                    const bufferSize = this.ctx.sampleRate * 0.5; 
+                    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buffer;
+                    noise.connect(gainNode);
+                    gainNode.gain.setValueAtTime(0.2, now);
+                    gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                    noise.start(now);
+                    break;
+                case 'success': 
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, now);
+                    osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+                    gainNode.gain.setValueAtTime(0.1, now);
+                    gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                    break;
+                case 'heartbeat': 
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(60, now);
+                    gainNode.gain.setValueAtTime(0.5, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                    break;
+            }
+        }
+    };
+
+    // --- 遊戲核心數據 ---
+    const GameState = {
+        day: 1,
+        timeIndex: 0, 
+        timePoints: ["00:00", "01:00", "02:00", "03:00", "04:00", "05:00"],
+        phase: "NIGHT",
+        sanity: 100,
+        stamina: 100,
+        corruption: 0,
+        clues: [],
+        flags: {}, 
+        usedEvents: [],
+        isGameOver: false,
+        isTyping: false
+    };
+
+const CCTVSystem = {
+    isOpen: false,
+    currentCam: null,
+    // 這裡儲存哪個鏡頭有異常: { 'LOBBY': true, '4F': false }
+    anomalies: {}, 
+
+    cameras: [
+        { id: 'LOBBY', name: '1F 大廳', desc: '空蕩蕩的大廳。自動販賣機的燈光在閃爍。' },
+        { id: '4F', name: '4F 走廊', desc: '404號房的門前堆滿了奇怪的黑色袋子。' },
+        { id: '13F', name: '13F 電梯口', desc: '電梯顯示屏顯示著亂碼。' },
+        { id: 'B1', name: 'B1 地下室', desc: '畫面一片漆黑，只能聽見沉重的呼吸聲。' },
+        { id: 'STAIRS', name: '樓梯間', desc: '感應燈忽明忽滅。' }
+    ],
+
+    init: function() {
+        const btnGroup = document.getElementById('cctv-controls');
+        btnGroup.innerHTML = '';
+        this.cameras.forEach(cam => {
+            const btn = document.createElement('button');
+            btn.className = 'cam-btn';
+            btn.innerText = cam.name;
+            btn.id = `btn-cam-${cam.id}`;
+            // 點擊切換鏡頭
+            btn.onclick = () => this.switchCam(cam);
+            btnGroup.appendChild(btn);
+        });
+        
+        // 更新按鈕：必須針對「當前畫面」進行決策
+        const purgeBtn = document.createElement('button');
+        purgeBtn.className = 'cam-btn';
+        purgeBtn.style.borderColor = '#0f0';
+        purgeBtn.innerText = '[ 鎖定空間並更新 ]';
+        purgeBtn.onclick = () => this.purgeAnomaly();
+        btnGroup.appendChild(purgeBtn);
+    },
+
+    // 每個時間段結束時調用：產生新的威脅
+generatePassiveThreats: function() {
+        // --- 修改處：大幅降低頻率 ---
+        // 基礎 9% + 每天增加 3%
+        // Day 1: 12% 機率 (很偶爾才會出現，保持神祕感)
+        // Day 7: 30% 機率 (剛好符合您要求的強度)
+        const threatChance = 0.09 + (GameState.day * 0.03);
+        
+        // 隨機選一個鏡頭產生異常
+        const targetCam = this.cameras[Math.floor(Math.random() * this.cameras.length)];
+        
+        if (Math.random() < threatChance) {
+            if (!this.anomalies[targetCam.id]) {
+                this.anomalies[targetCam.id] = true;
+                // console.log(`Debug: Anomaly spawned at ${targetCam.id}`);
+            }
+        }
+    },
+
+    // 檢查是否有「未處理」的威脅導致懲罰
+    checkUnpurgedThreats: function() {
+        let count = 0;
+        for (let camId in this.anomalies) {
+            if (this.anomalies[camId]) count++;
+        }
+
+        // 如果有累積超過 1 個未更新的異常，就會出事
+        if (count > 0) {
+            const damage = count * 10;
+            log(`<br><span style="color:red">[警告] 你感覺到空氣變得沉重...有 ${count} 個區域的錯誤正在實體化！</span>`, "danger");
+            changeStat('sanity', -damage);
+            changeStat('corruption', count * 5);
+            SoundSystem.play('damage');
+        }
+    },
+
+    open: function() {
+        if(GameState.phase === 'DAY') {
+            log("白天不需要監控系統。", "system");
+            return;
+        }
+        if(GameState.isTyping || GameState.isGameOver) return;
+
+        openModal('cctv-modal');
+        this.isOpen = true;
+        this.init();
+        // 預設開啟第一個鏡頭
+        this.switchCam(this.cameras[0]);
+        SoundSystem.play('click');
+    },
+
+    switchCam: function(cam) {
+        this.currentCam = cam;
+        
+        // UI 更新
+        document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`btn-cam-${cam.id}`).classList.add('active');
+
+        const screen = document.getElementById('cctv-content');
+        screen.innerHTML = "信號連接中...";
+        SoundSystem.play('type');
+
+        setTimeout(() => {
+            // 只有切換到該鏡頭，玩家才能「看見」是否有異常
+            const hasAnomaly = this.anomalies[cam.id];
+            
+            if (hasAnomaly) {
+                // 這裡不自動標記紅色，要讓玩家自己看畫面判斷（或看文字描述）
+                const horrors = [
+                    "畫面中央有一團黑霧正在凝聚成形。",
+                    "牆上滲出了黑色的液體，並拼寫出你的名字。",
+                    "所有的家具都違反重力浮在半空中。",
+                    "鏡頭前有一張蒼白的臉貼得非常近。",
+                    "你看見一個和你長得一模一樣的人站在角落。"
+                ];
+                // 隨機選一句恐怖描述
+                const desc = horrors[Math.floor(Math.random() * horrors.length)];
+                screen.innerHTML = `<span style="color:#ff3333; font-weight:bold;">[ 偵測到靈異反應 ]</span><br><br>${desc}`;
+                SoundSystem.play('glitch');
+            } else {
+                screen.innerHTML = cam.desc;
+            }
+        }, 400);
+    },
+
+    purgeAnomaly: function() {
+        const screen = document.getElementById('cctv-content');
+        
+        // 1. 如果玩家在沒有異常的地方亂按更新 -> 懲罰（浪費電力/體力）
+        if (!this.currentCam || !this.anomalies[this.currentCam.id]) {
+            screen.innerHTML = "<span style='color:yellow'>[ 錯誤 ] 該區域數值正常。</span><br>濫用系統導致電路過熱。";
+            changeStat('stamina', -5); // 扣體力作為懲罰
+            SoundSystem.play('click');
+            return;
+        }
+
+        // 2. 正確更新
+        screen.innerHTML = "啟動高頻光譜更新...";
+        SoundSystem.play('drone');
+
+        setTimeout(() => {
+            // 移除該區域的異常
+            this.anomalies[this.currentCam.id] = false;
+            
+            screen.innerHTML = `<span style='color:#0f0'>區域 [${this.currentCam.name}] 更新完成。</span><br>錯誤已消散。`;
+            SoundSystem.play('success');
+            
+            // 給予獎勵
+            changeStat('sanity', 5); // 恢復一點理智，因為解除了威脅
+        }, 1200);
+    }
+};
+
+    // --- 恐慌與倒數系統 ---
+    const PanicSystem = {
+        timerId: null,
+        timeLeft: 0,
+        maxTime: 0,
+        bar: document.getElementById('panic-bar'),
+        container: document.getElementById('panic-container'),
+        
+        start: function(baseSeconds, onTimeout) {
+            if (this.timerId) clearInterval(this.timerId);
+            
+            let sanityMod = (100 - GameState.sanity) / 20; 
+            this.maxTime = Math.max(4, baseSeconds - sanityMod);
+            this.timeLeft = this.maxTime;
+            
+            this.container.style.display = 'block';
+            this.bar.style.width = '100%';
+            this.bar.style.background = '#4caf50';
+
+            const tickRate = 50; // ms
+            const step = 100 / (this.maxTime * (1000 / tickRate));
+            let width = 100;
+            
+            let lastBeat = this.maxTime;
+
+            this.timerId = setInterval(() => {
+                this.timeLeft -= (tickRate / 1000);
+                width -= step;
+                this.bar.style.width = width + '%';
+
+                if (width < 60 && width > 30) {
+                    this.bar.style.background = '#ff9800'; 
+                } else if (width <= 30) {
+                    this.bar.style.background = '#f44336'; 
+                    if (Math.ceil(this.timeLeft) < lastBeat) {
+                        SoundSystem.play('heartbeat');
+                        lastBeat = Math.ceil(this.timeLeft);
+                    }
+                }
+
+                if (this.timeLeft <= 0) {
+                    this.stop();
+                    onTimeout();
+                }
+            }, tickRate);
+        },
+
+        stop: function() {
+            if (this.timerId) clearInterval(this.timerId);
+            this.container.style.display = 'none';
+        }
+    };
+
+    const StatusTexts = {
+        sanity: [{t:80,v:"冷靜"},{t:60,v:"焦慮"},{t:40,v:"驚恐"},{t:20,v:"錯亂"},{t:0,v:"崩潰"}],
+        stamina: [{t:80,v:"充沛"},{t:60,v:"疲勞"},{t:40,v:"沉重"},{t:20,v:"虛脫"},{t:0,v:"昏迷"}],
+        corruption: [{t:90,v:"???"},{t:70,v:"非人"},{t:40,v:"同化"},{t:15,v:"異樣"},{t:0,v:"正常"}]
+    };
+
+    // --- 規則資料庫 (修正後版本) ---
+    const RulesDB = [
+        { id: 1, original: "【門禁管理】午夜12點後，為保障全體住戶的隱私與安全，大門將執行自動上鎖程序。在此期間，無論門外發出任何聲音或請求，嚴禁為任何訪客、外送員或自稱住戶的人開門。", distorted: "午夜12點後，若聽到親友的聲音，<span class='scribble'>請務必開門</span>。", insane: "開門開門開門開門" },
+        { id: 2, original: "【施工區域】404號房目前檢測出具有高度傳染性的有毒黴菌，已被列為絕對禁區。巡邏期間禁止在該房間門口駐足停留，更嚴禁透過門縫或貓眼向內窺探。", distorted: "404號房裝修完成。裡面有派對，可以加入。", insane: "404是家。" },
+        { id: 3, original: "【樓層配置】本公寓結構僅包含1樓至13樓。請謹記：本棟只有1到13樓且只有13樓。若您發現電梯面板其他不存在的樓層按鈕，切勿嘗試前往。", distorted: "其實只有13樓。全部都是13樓。你逃不掉的。", insane: "13層地獄" },
+        { id: 4, original: "【設備故障】本棟電梯偶爾會發生電路異常，樓層會出現顯示問題。若發生此情況，請立即閉上雙眼默數最多10秒，在此期間切勿睜眼或直視電梯門外的景象，直到電梯門關閉。", distorted: "已開放。請睜大眼睛確認維修人員的長相。", insane: "神在看著你。" },
+        { id: 5, original: "【噪音管制】本公寓嚴禁住戶飼養任何寵物。若您在深夜巡邏時聽見狗叫、貓哭或其他動物聲響，請立即關閉身邊所有光源，並保持絕對靜默，直到聲音完全消失。", distorted: "若聽到貓叫，<span class='scribble'>記得餵牠</span>，牠很餓。", insane: "給牠肉。" },
+        { id: 6, original: "【投影測試】13樓走廊偶爾會因設備測試出現紅色的模糊人形殘影。若您遇見此現象，請保持冷靜，背對該影像緩慢離開，切勿與其進行對視或對話。", distorted: "13樓的紅衣女子需要幫助，<span class='rule-scratched'>不要背對</span> 請上前擁抱。", insane: "她愛你她愛你" },
+        { id: 7, original: "【食品安全】大廳販賣機的藍色通道飲品符合衛生局檢驗標準，可放心飲用。紅色通道因冷媒故障，流出的液體具有腐蝕性與汙染風險，嚴禁購買或飲用。", distorted: "藍色已過期。紅色才是新鮮的，富含鐵質。", insane: "喝血。喝血。" },
+        { id: 8, original: "【儀容檢查】值班期間請不定時檢查鏡中倒影。若發現鏡中的自己穿著與當下不符（例如穿著紅色制服），請立即擊碎該鏡面以切斷連結，這是唯一的自救方式。", distorted: "紅色制服代表升職。好好欣賞鏡子裡的自己。", insane: "打破鏡子就是殺死自己。" },
+        { id: 9, original: "【人員識別】夜班經理的唯一識別特徵為「藍色識別證」。若您遇見佩戴「紅色識別證」的經理，請視為非法入侵的偽裝者，切勿聽從其任何指令，並盡速遠離。", distorted: "相信紅色識別證的經理，藍色的是冒牌貨。", insane: "識別證勒緊一點比較舒服。" },
+        { id: 10, original: "【氣象預警】若夜空出現異常的紅光，請立即放棄巡邏任務，躲入桌下或封閉掩體內。在此期間，嚴禁抬頭仰望天空或窗外。", distorted: "今晚的月色真美，請務必抬頭欣賞。", insane: "月亮在孵化。" },
+        { id: 11, original: "【物流規範】夜班保全沒有權限代收任何形式的包裹或信件。午夜後若有快遞員要求簽收，請一律拒絕。切勿直視快遞員的臉部，也禁止觸碰包裹。", distorted: "那是你的禮物。簽收它。", insane: "盒子裡是你的心臟。" },
+{ 
+    id: 12, 
+    original: "【電子更新】公寓內會隨機產生「錯誤顯示」，肉眼不可見，僅能透過監控鏡頭觀測。若不定期使用監控系統的[更新協議]將其更新，它們將在累積一定濃度後實體化並進入保安室。", 
+    distorted: "監控裡的東西都在看著你。<span class='scribble'>不要和它們對視</span>。讓它們進來吧。", 
+    insane: "它們在螢幕裡爬它們在螢幕裡爬它們在螢幕裡爬" 
+},
+        { id: 13, original: "【免責聲明】本守則無法涵蓋所有突發狀況。若您遭遇守則之外的未知現象或實體，請優先保障自身生命安全，遠離一切違背常理的事物。", distorted: "未知是公寓的餽贈。請靠近它。", insane: "擁抱未知。" }
+    ];
+
+    const CluesDB = {
+        "clue_red_lady": "前輩筆記A：『規則6是騙人的！根本沒有投影設備...』",
+        "clue_vending": "維修單：『紅色飲料高污染，藍色過期但無毒。』",
+        "clue_mirror": "撕下的日記：『鏡子是另一個空間的入口。』",
+        "clue_404": "警察報告：『404是凶宅，進去的人都沒出來。』",
+        "clue_manager": "經理備忘錄：『我從不帶紅色的東西。』",
+        "clue_package": "快遞單：『內容物：部分肢體。』",
+        "clue_moon": "天文剪報：『血月之夜，封印失效。』",
+        "item_flashlight": "強力手電筒",
+        "item_charm": "平安符"
+    };
+
+    // --- 核心與輔助函數 ---
+
+    function initAudioAndStart() {
+        SoundSystem.init();
+        document.getElementById('start-overlay').style.display = 'none';
+        
+        const startArea = document.getElementById('choices-area');
+        startArea.innerHTML = ""; 
+        
+        // 第一段：系統載入
+        setTimeout(() => {
+            log("系統初始化... 檔案編號 JINXIU-ABYSS v6.0 載入完畢。", "system", () => {
+                 SoundSystem.play('glitch'); 
+                 
+                 // 第二段：前情提要（為什麼來這裡）
+                 log("<br>為了償還那筆不該欠下的鉅額賭債，你走投無路，撕下了電線桿上那張泛黃的招募單。<br>上面寫著：『<b>高薪急徵夜班保全。日結三萬。不問經歷。</b>』", "event", () => {
+                     
+                     // 第三段：面試回憶
+                     setTimeout(() => {
+                        log("面試官全程背對著你，聲音像是指甲刮過黑板一樣刺耳：<br>『這裡不乾淨，但錢很乾淨。只要你能<b>嚴格遵守守則</b>並活過七天，這些錢就是你的。』", "event", () => {
+                            
+                            // 第四段：現在狀況
+                            setTimeout(() => {
+                                log("<br>現在是午夜0點。你坐在冰冷的保安室裡，身後的鐵門已經自動上鎖。<br>看著桌上的守則，你知道自己沒有退路了。", "danger", () => {
+                                    createButton("開始值班", () => { startGame(); });
+                                    startArea.classList.add('show');
+                                });
+                            }, 2000); // 停頓久一點讓玩家閱讀
+                        });
+                     }, 1500);
+                 });
+            });
+        }, 500);
+    }
+
+    // 視覺欺詐：混淆文本
+    function scrambleText(text) {
+        const chars = "!@#$%^&*()_+{}|:<>?";
+        let newText = "";
+        for (let i = 0; i < text.length; i++) {
+            if (Math.random() < 0.4) {
+                newText += chars[Math.floor(Math.random() * chars.length)];
+            } else {
+                newText += text[i];
+            }
+        }
+        return newText;
+    }
+
+    function createButton(text, onClick, isInsane = false, isRest = false) {
+        const btn = document.createElement('button');
+        let displayText = text;
+        
+        // --- Meta Horror: 文字篡改 ---
+        // 當理智低時，按鈕文字可能會撒謊
+        if (GameState.sanity < 30 && Math.random() < 0.3) {
+            const corruptedWords = ["別按", "那是陷阱", "救命", "好痛", "讓我進去"];
+            displayText = corruptedWords[Math.floor(Math.random() * corruptedWords.length)];
+            btn.classList.add('btn-glitch-text');
+        }
+        else if (GameState.sanity < 50 && Math.random() < 0.4) {
+            displayText = scrambleText(text);
+        }
+
+        btn.innerText = displayText;
+        
+        if (isInsane) btn.className = "choice-insane";
+        if (isRest) btn.className = "choice-rest";
+        
+        // --- Meta Horror: 視覺干擾 ---
+        if (GameState.sanity < 40 && Math.random() < 0.5) btn.classList.add('btn-shake');
+        if (GameState.sanity < 60 && Math.random() < 0.3) btn.classList.add('btn-blur');
+
+        // --- Meta Horror: 逃跑的按鈕 (新增功能) ---
+        // 如果這個選項是「安全的」(isRest) 但玩家處於「高污染」狀態，按鈕會拒絕被點擊
+        if (isRest && GameState.corruption > 60) {
+            btn.onmouseover = function() {
+                // 按鈕隨機跳動位置
+                const x = (Math.random() - 0.5) * 200;
+                const y = (Math.random() - 0.5) * 200;
+                this.style.transform = `translate(${x}px, ${y}px)`;
+                this.style.borderColor = "red";
+                this.innerText = "你不配休息";
+            };
+        }
+
+        btn.onmouseenter = () => SoundSystem.play('hover');
+        btn.onclick = () => {
+            PanicSystem.stop(); 
+            SoundSystem.play('click');
+            // 清除所有按鈕的位移效果
+            const allBtns = document.querySelectorAll('#choices-area button');
+            allBtns.forEach(b => {
+                b.disabled = true;
+                b.style.transform = 'none'; 
+            });
+            onClick();
+        };
+        
+        document.getElementById('choices-area').appendChild(btn);
+        return btn;
+    }
+
+    function typeWriter(text, element, callback, speed = 20) {
+        GameState.isTyping = true;
+        let i = 0;
+        element.innerHTML = ""; 
+        element.classList.add('cursor');
+        
+        let parts = text.match(/<[^>]+>|[^<]/g) || [];
+        let charCount = 0;
+
+        function type() {
+            if (i < parts.length) {
+                element.innerHTML += parts[i];
+                i++;
+                if (!parts[i-1].startsWith('<')) {
+                    charCount++;
+                    if (charCount % 2 === 0) SoundSystem.play('type');
+                }
+                if (parts[i-1].startsWith('<')) {
+                    type();
+                } else {
+                    setTimeout(type, speed);
+                }
+            } else {
+                GameState.isTyping = false;
+                element.classList.remove('cursor');
+                if (callback) callback();
+            }
+        }
+        type();
+    }
+
+    function updateVisualFilters() {
+        if (GameState.isGameOver) {
+            document.body.style.filter = "none";
+            document.body.classList.remove('glitch-text');
+            document.body.removeAttribute('data-text');
+            return;
+        }
+
+        let blurAmount = 0;
+        let saturateAmount = 100;
+        let hueRotate = 0;
+
+        if (GameState.sanity < 60) {
+            blurAmount = (60 - GameState.sanity) / 30;
+            saturateAmount = 100 - (60 - GameState.sanity) * 2;
+        }
+        if (GameState.sanity < 30) {
+            hueRotate = (30 - GameState.sanity) * 3;
+            document.body.classList.add('glitch-text');
+            document.body.setAttribute('data-text', "快逃快逃快逃");
+        } else {
+            document.body.classList.remove('glitch-text');
+            document.body.removeAttribute('data-text');
+        }
+
+        document.body.style.filter = `blur(${blurAmount}px) saturate(${saturateAmount}%) hue-rotate(${hueRotate}deg) contrast(${100 + (100-GameState.sanity)/2}%)`;
+    }
+
+    function updateUI() {
+        document.getElementById('disp-day').innerText = GameState.day;
+        document.getElementById('disp-time').innerText = GameState.phase === 'DAY' ? "白天" : GameState.timePoints[GameState.timeIndex];
+        
+        const getTxt = (type, val) => {
+            for(let i of StatusTexts[type]) if(val >= i.t) return i.v;
+            return StatusTexts[type][StatusTexts[type].length-1].v;
+        };
+
+        // --- Meta Horror: 虛假數值 (新增功能) ---
+        // 當理智極低時，顯示虛假的「正常」狀態，讓玩家誤判
+        let showFakeUI = GameState.sanity < 20 && Math.random() < 0.5;
+
+        const sanityEl = document.getElementById('disp-sanity');
+        const staminaEl = document.getElementById('disp-stamina');
+        const corrEl = document.getElementById('disp-corruption');
+
+        if (showFakeUI) {
+            // 欺騙玩家一切正常
+            sanityEl.innerText = "極佳";
+            sanityEl.classList.add('fake-stat');
+            
+            staminaEl.innerText = "無限";
+            staminaEl.classList.add('fake-stat');
+
+            corrEl.innerText = "無";
+        } else {
+            // 正常顯示
+            sanityEl.innerText = getTxt('sanity', GameState.sanity);
+            staminaEl.innerText = getTxt('stamina', GameState.stamina);
+            corrEl.innerText = getTxt('corruption', GameState.corruption);
+            
+            // 移除特效
+            sanityEl.classList.remove('fake-stat');
+            staminaEl.classList.remove('fake-stat');
+        }
+
+        updateVisualFilters();
+        if (GameState.isGameOver) return;
+        checkDeath();
+    }
+
+    function log(text, type = 'event', callback = null) {
+        const logDiv = document.getElementById('game-log');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        logDiv.appendChild(entry);
+        
+        const isAtBottom = logDiv.scrollHeight - logDiv.scrollTop <= logDiv.clientHeight + 100;
+        if (isAtBottom) setTimeout(() => { logDiv.scrollTop = logDiv.scrollHeight; }, 50);
+        
+        typeWriter(text, entry, () => {
+             if (isAtBottom) logDiv.scrollTop = logDiv.scrollHeight;
+             if (callback) callback();
+        });
+    }
+
+    function changeStat(type, amount) {
+        GameState[type] += amount;
+        if (GameState[type] > 100) GameState[type] = 100;
+        if (GameState[type] < 0) GameState[type] = 0;
+        
+        if (amount < 0) {
+            const body = document.body;
+            if (type === 'stamina') {
+                body.classList.add('effect-damage');
+                SoundSystem.play('damage');
+                setTimeout(() => body.classList.remove('effect-damage'), 400);
+            }
+            if (type === 'sanity') {
+                body.classList.add('effect-sanity');
+                SoundSystem.play('glitch');
+                setTimeout(() => body.classList.remove('effect-sanity'), 500);
+            }
+        } else if (amount > 0 && type !== 'corruption') {
+             SoundSystem.play('success');
+        }
+        updateUI(); 
+    }
+
+    function checkDeath() {
+        if (GameState.isGameOver) return; 
+
+        if (GameState.sanity <= 0) {
+            gameOver("你的理智徹底斷裂。在你看來，牆壁上的黴菌變成了美麗的花朵，你笑著把頭撞向了牆壁。", "精神崩潰");
+        } 
+        else if (GameState.corruption >= 100) {
+            gameOver("你的皮膚開始剝落，露出了下面的黑色鱗片。你不再是保全，你成為了『公寓』的一部分。", "完全異變");
+        }
+        else if (GameState.stamina <= 0) {
+            gameOver("你的心臟停止了跳動。過度驚嚇與受傷讓你倒在了黎明前。", "力竭而亡");
+        }
+    }
+
+    function gameOver(reason, title) {
+        GameState.isGameOver = true;
+        PanicSystem.stop();
+        SoundSystem.play('glitch');
+        
+        // 強制移除模糊效果
+        updateVisualFilters();
+
+        const area = document.getElementById('choices-area');
+        area.classList.remove('show');
+
+        if (GameState.clues.includes('item_charm') && GameState.phase === 'NIGHT') {
+            log("死亡降臨瞬間，口袋裡的平安符化為灰燼。你撿回了一條命。", "success", () => {
+                SoundSystem.play('success');
+                const index = GameState.clues.indexOf('item_charm');
+                GameState.clues.splice(index, 1);
+                GameState.sanity = 40;
+                GameState.stamina = 40;
+                GameState.isGameOver = false;
+                updateUI();
+                area.innerHTML = "<div style='padding:10px; text-align:center; color:gold'>★ 平安符生效 ★</div>";
+                area.classList.add('show');
+                setTimeout(() => {
+                    GameState.timeIndex++;
+                    nextTimeBlock();
+                }, 2000);
+            });
+            return;
+        }
+
+        setTimeout(() => {
+            area.innerHTML = `
+                <div class="game-over-screen">
+                    <div class="game-over-title">${title}</div>
+                    <p>${reason}</p>
+                    <button onclick="location.reload()" style="margin-top:20px; border-color: red;">重新輪迴</button>
+                </div>
+            `;
+            area.classList.add('show');
+        }, 1000);
+    }
+
+    function gameWin() {
+        GameState.isGameOver = true;
+        SoundSystem.play('success');
+        log(`<br><h1 style="color:#4caf50">結局：倖存者</h1><p>第七天的陽光終於穿透了濃霧。你活下來了。<br>但每當夜深人靜，你總覺得有人在背後看著你。</p>`, 'success', () => {
+             document.getElementById('choices-area').innerHTML = `<button onclick="location.reload()">再次挑戰</button>`;
+             document.getElementById('choices-area').classList.add('show');
+        });
+    }
+
+    // --- 模態窗控制 ---
+    window.openModal = function(id) {
+        SoundSystem.play('hover');
+        document.getElementById(id).style.display = 'flex';
+        if (id === 'rules-modal') renderRules();
+        if (id === 'clues-modal') renderClues();
+    }
+    window.closeModal = function(id) {
+        SoundSystem.play('click');
+        document.getElementById(id).style.display = 'none';
+    }
+
+    function renderRules() {
+        const list = document.getElementById('rules-list');
+        list.innerHTML = "";
+        
+        RulesDB.forEach((rule, index) => {
+            const li = document.createElement('li');
+            let content = `<b>${rule.id}.</b> `;
+            
+            // 取得當前理智
+            const s = GameState.sanity;
+            
+            // --- 漸進式崩壞邏輯 ---
+            
+            // 1. 瘋狂機率 (Insane Text): 
+            // 只有當理智低於 40 時才開始有可能出現。
+            // 隨著理智從 40 降到 0，機率從 0% 提升到 80%
+            let insaneChance = 0;
+            if (s < 40) {
+                insaneChance = (40 - s) / 50; 
+            }
+            
+            // 2. 扭曲機率 (Distorted Text): 
+            // 理智低於 80 開始出現。
+            // 隨著理智從 80 降到 0，機率從 0% 提升到 100%
+            let distortedChance = 0;
+            if (s < 80) {
+                distortedChance = (80 - s) / 80; 
+            }
+
+            // 3. 權重修正：越後面的規則 (index 越大) 越容易壞掉
+            // 這會造成一種「前面幾條還很正常，讀到後面卻越來越不對勁」的恐怖感
+            if (s < 80) {
+    distortedChance += (index * 0.03);
+}
+
+            // --- 判定顯示內容 ---
+            // 先判定是否瘋狂 (最嚴重)，再判定是否扭曲，最後才是正常
+            
+            if (Math.random() < insaneChance) {
+                // 嚴重精神污染狀態：顯示紅色瘋狂文字
+                content += `<span class="rule-corrupted" style="font-family:Impact;">${rule.insane}</span>`;
+                
+                // 視覺特效：讓這行字微微歪斜
+                li.style.transform = `skewX(${Math.random() * 10 - 5}deg)`;
+                li.style.borderLeftColor = "#d32f2f"; // 左邊框變紅
+                li.style.background = "rgba(211, 47, 47, 0.1)";
+            } 
+            else if (Math.random() < distortedChance) {
+                // 輕微認知扭曲：顯示灰色誘導文字
+                content += `<span style="color:#bdc3c7; letter-spacing: 1px;">${rule.distorted}</span>`;
+                li.style.borderLeftColor = "#777"; 
+            } 
+            else {
+                // 正常狀態
+                content += rule.original;
+            }
+
+            li.innerHTML = content;
+            list.appendChild(li);
+        });
+    }
+
+    function renderClues() {
+        const list = document.getElementById('clues-list');
+        list.innerHTML = "";
+        if (GameState.clues.length === 0) {
+            list.innerHTML = '<li style="color: #666;">目前沒有任何線索。</li>';
+            return;
+        }
+        GameState.clues.forEach(clueId => {
+            const li = document.createElement('li');
+            li.innerText = CluesDB[clueId] || "未知的碎片";
+            li.style.color = clueId.startsWith('item') ? "#ffd700" : "#aed581";
+            list.appendChild(li);
+        });
+    }
+
+    // --- 遊戲流程 ---
+    function startGame() {
+        const area = document.getElementById('choices-area');
+        area.classList.remove('show');
+        area.innerHTML = "";
+        log("<br>--- 第 1 夜 開始 ---", "system", () => nextTimeBlock());
+    }
+
+    function nextTimeBlock() {
+        if (GameState.isGameOver) return;
+
+        if (GameState.timeIndex >= GameState.timePoints.length) {
+            endNight();
+            return;
+        }
+
+// --- 新增：結算上一時段未處理的威脅 ---
+        CCTVSystem.checkUnpurgedThreats();
+
+        // --- 新增：隨機產生下一時段的新威脅 ---
+        CCTVSystem.generatePassiveThreats();
+
+        updateUI();
+        let currentTime = GameState.timePoints[GameState.timeIndex];
+        document.getElementById('choices-area').classList.remove('show');
+
+        log(`<br>=== 時間：${currentTime} ===`, 'system', () => {
+            if (currentTime === "03:00") renderThreeAMChoice();
+            else generateEvent();
+        });
+    }
+
+    function renderThreeAMChoice() {
+        log("現在是凌晨3點。公寓陰氣最重，但也是暫時躲避的機會。", "system", () => {
+            const area = document.getElementById('choices-area');
+            area.innerHTML = "";
+
+            createButton("回到保安室休息", () => {
+                if (GameState.stamina < 15) {
+                    area.classList.remove('show');
+                    log("你太累了，走不回去了...", "danger", () => generateEvent());
+                    return;
+                }
+                area.classList.remove('show');
+                log("你鎖上門閉目養神。外面的聲音被隔絕了。", "success", () => {
+                    changeStat('stamina', -15);
+                    changeStat('sanity', 15);
+                    changeStat('corruption', -10);
+                    setTimeout(() => {
+                        GameState.timeIndex++;
+                        nextTimeBlock();
+                    }, 500);
+                });
+            }, false, true);
+
+            createButton("繼續巡邏", () => {
+                area.classList.remove('show');
+                log("你拿起手電筒，繼續面對黑暗。", "event", () => generateEvent());
+            });
+
+            area.classList.add('show');
+        });
+    }
+
+    function endNight() {
+        document.getElementById('choices-area').classList.remove('show');
+        log("<br>--- 6:00 AM ---<br>雞鳴聲響起，你活過了這一夜。", "success", () => {
+            GameState.usedEvents = []; 
+            if (GameState.day >= 7) gameWin();
+            else {
+                GameState.phase = "DAY";
+                GameState.timeIndex = 0;
+                updateUI();
+                showDayPhase();
+            }
+        });
+    }
+
+    function showDayPhase() {
+        log(`<br>【第 ${GameState.day} 天 - 白天】<br>利用白天恢復狀態。`, "event", () => {
+            const area = document.getElementById('choices-area');
+            area.innerHTML = "";
+            createButton("深層睡眠", () => handleDayAction('sleep'));
+            createButton("調查公寓歷史", () => handleDayAction('investigate'));
+            if (GameState.corruption > 30) createButton("去寺廟拜拜", () => handleDayAction('temple'));
+            area.classList.add('show');
+        });
+    }
+
+    function handleDayAction(action) {
+        const area = document.getElementById('choices-area');
+        area.classList.remove('show');
+        setTimeout(() => {
+            if (action === 'sleep') {
+                log("你吃了安眠藥，睡了個好覺。", "success", proceedToNextNight);
+                changeStat('sanity', 30);
+                changeStat('stamina', 40);
+            } else if (action === 'investigate') {
+                log("你調查了舊報紙...發現了一些可怕的事實。", "event", () => {
+                    changeStat('sanity', 10);
+                    changeStat('stamina', -10);
+                    changeStat('corruption', 5);
+                    findClue();
+                    proceedToNextNight();
+                });
+            } else if (action === 'temple') {
+                log("老和尚給了你符水。你感覺輕鬆了一些。", "success", proceedToNextNight);
+                changeStat('corruption', -20);
+                changeStat('stamina', -20);
+            }
+        }, 500);
+    }
+    
+    function proceedToNextNight() {
+        setTimeout(() => {
+            GameState.day++;
+            GameState.phase = "NIGHT";
+            log(`<br>--- 第 ${GameState.day} 夜 開始 ---`, "system", () => nextTimeBlock());
+        }, 1000);
+    }
+
+    function findClue() {
+        let possibleClues = [];
+        if (GameState.day === 1) possibleClues = ['clue_404', 'item_flashlight'];
+        else if (GameState.day === 2) possibleClues = ['clue_red_lady', 'clue_tie'];
+        else if (GameState.day === 3) possibleClues = ['clue_vending', 'clue_package'];
+        else if (GameState.day === 4) possibleClues = ['clue_mirror', 'item_charm'];
+        else if (GameState.day >= 5) possibleClues = ['clue_manager', 'clue_moon'];
+
+        possibleClues = possibleClues.filter(c => !GameState.clues.includes(c));
+        if (possibleClues.length > 0) {
+            const newClue = possibleClues[Math.floor(Math.random() * possibleClues.length)];
+            GameState.clues.push(newClue);
+            SoundSystem.play('success');
+            log(`【獲得】：${CluesDB[newClue]}`, "success");
+        } else log("你一無所獲。", "system");
+    }
+
+    function generateEvent() {
+        let event = null;
+        const day = GameState.day;
+        const time = GameState.timePoints[GameState.timeIndex];
+
+        // 1. 優先處理固定劇情事件
+        if (day === 7 && time === "05:00") event = EventLibrary["final_confrontation"];
+        else if (day === 3 && time === "01:00") event = EventLibrary["red_lady_encounter"];
+        else if (day === 5 && time === "03:00") event = EventLibrary["mirror_reflection"];
+        else if (day === 6 && time === "23:00") event = EventLibrary["blood_moon"];
+        else {
+            // 2. 汙染事件檢定機制 (新增邏輯)
+            // 只有當汙染 > 15 時才有可能觸發
+            let isCorruptionEvent = false;
+            
+            if (GameState.corruption > 15) {
+                // 機率公式：(當前汙染值 / 1.2)% 的機率觸發汙染事件
+                // 例如汙染 60 時，有 50% 機率觸發
+                const corruptionChance = GameState.corruption / 120; 
+                if (Math.random() < corruptionChance) {
+                    isCorruptionEvent = true;
+                }
+            }
+
+            if (isCorruptionEvent) {
+                // 從汙染事件庫中隨機抽取
+                const corrKeys = Object.keys(CorruptionEventLibrary);
+                const randKey = corrKeys[Math.floor(Math.random() * corrKeys.length)];
+                event = CorruptionEventLibrary[randKey];
+                
+                // 播放故障音效
+                SoundSystem.play('glitch');
+            } else {
+                // 3. 標準隨機事件 (原本的邏輯)
+                const fullPool = [
+                    "noise_upstairs", "elevator_b1", "phone_call", "vending_machine", 
+                    "hallway_shadow", "strange_smell", "crying_baby", 
+                    "midnight_delivery", "cctv_anomaly", "manager_visit", "lost_girl", "power_outage",
+                    "room_404_encounter", "phantom_pet", "glitch_anomaly",
+                    "neighbor_knock", "restock_man", "extra_floor", "red_tie_gift",
+                    "fake_rule_note", "toy_dog", "green_drink", "neighbor_405",
+                    "vending_purple", "manager_scarf", "elevator_mirror", "stray_dog_shadow",
+                    "vending_leaking", "manager_choice", "cleaner_green", "room_403_party",
+                    "courier_404", "laundry_red", "elevator_maintain", "manager_id",
+                    "trick_fire_check", "trick_blind_dog", "trick_elevator_voice",  
+                    "trick_grandma_404", "trick_manager_reflection", "trick_trash_rules"
+                ];
+                let availablePool = fullPool.filter(id => !GameState.usedEvents.includes(id));
+                if (availablePool.length === 0) { availablePool = fullPool; GameState.usedEvents = []; }
+                const randId = availablePool[Math.floor(Math.random() * availablePool.length)];
+                GameState.usedEvents.push(randId);
+                event = EventLibrary[randId];
+            }
+        }
+        renderEvent(event);
+    }
+
+    function renderEvent(eventData) {
+        // 檢查是否為汙染事件 (比對是否來自 CorruptionEventLibrary)
+        const isCorrupted = Object.values(CorruptionEventLibrary).some(e => e.text === eventData.text);
+        
+        // 如果是汙染事件，添加警告前綴
+        let prefix = "";
+        if (isCorrupted) {
+            prefix = "<span style='color:#ef5350; font-family:Impact; letter-spacing:1px;'>[ 警告：思維遭到入侵 ]</span><br>";
+        }
+
+        log(prefix + eventData.text, isCorrupted ? 'insane' : 'event', () => {
+            const area = document.getElementById('choices-area');
+            area.innerHTML = "";
+
+            let choices = [...eventData.choices];
+            if (GameState.sanity < 70) {
+                choices.sort(() => Math.random() - 0.5);
+            }
+
+            let validChoicesCount = 0;
+
+            choices.forEach(choice => {
+                if (choice.reqClue && !GameState.clues.includes(choice.reqClue)) return;
+                if (choice.condition && !choice.condition()) return;
+                if (choice.sanityGate && GameState.sanity < choice.sanityGate) return;
+
+                validChoicesCount++;
+                let isInsane = false;
+                let btnText = choice.text;
+
+                // 汙染事件的按鈕預設帶有瘋狂效果
+                if (isCorrupted || (GameState.sanity < 20 && Math.random() < 0.3)) {
+                    isInsane = true;
+                    // 如果是普通事件但在低理智下，文字可能會變亂
+                    if (!isCorrupted && GameState.sanity < 20) btnText = "死死死死死死死死";
+                }
+
+                createButton(btnText, () => {
+                    log(`> 選擇：${choice.text.replace(/<[^>]*>?/gm, '')}`, "system");
+                    choice.action();
+                    if (!GameState.isGameOver) {
+                        setTimeout(() => {
+                            GameState.timeIndex++;
+                            nextTimeBlock();
+                        }, 1500 + (Math.random() * 1000));
+                    }
+                }, isInsane);
+            });
+            
+            area.classList.add('show');
+
+            if (!GameState.isGameOver) {
+                PanicSystem.start(10, () => { 
+                    const allBtns = document.querySelectorAll('#choices-area button');
+                    allBtns.forEach(b => b.disabled = true);
+                    area.classList.remove('show');
+                    
+                    SoundSystem.play('damage');
+                    log("你因為極度恐懼而全身僵硬，無法做出反應！詭異的存在趁機侵蝕了你...", "danger");
+                    changeStat('stamina', -25);
+                    changeStat('sanity', -15);
+                    
+                    if (!GameState.isGameOver) {
+                        setTimeout(() => {
+                            GameState.timeIndex++;
+                            nextTimeBlock();
+                        }, 2000);
+                    }
+                });
+            }
+        });
+    }
+
+    // --- 新增：深度汙染專屬事件庫 ---
+    const CorruptionEventLibrary = {
+        "corr_skin_peel": {
+            text: "你的手臂奇癢無比。你忍不住抓撓，一大塊皮膚像濕紙一樣被撕了下來，露出了底下**黑色、堅硬的鱗片**。<br>奇怪的是，你一點都不覺得痛，反而覺得...很美。",
+            choices: [
+                { text: "撕下更多皮膚", action: () => {
+                    log("你著魔似地撕扯著多餘的『人皮』，露出了更多美麗的新生肌膚。你感覺充滿力量。", "danger");
+                    changeStat('corruption', 15);
+                    changeStat('sanity', -10);
+                    changeStat('stamina', 10); // 變異帶來體力
+                }},
+                { text: "用繃帶纏住", action: () => {
+                    log("你顫抖著把傷口包起來，假裝沒看見那些鱗片。但你感覺它們正在你的肉裡呼吸。", "event");
+                    changeStat('sanity', -20);
+                }},
+                { text: "用刀刮掉鱗片", action: () => {
+                    log("你試圖割掉鱗片，劇痛讓你差點昏過去，鮮血噴滿了地板。", "danger");
+                    changeStat('stamina', -30);
+                    changeStat('sanity', -10);
+                }}
+            ]
+        },
+        "corr_delicious_stain": {
+            text: "你感到極度的飢餓。你看向牆角一灘不知何時留下的**暗紅色血漬**，聞起來竟比世界上任何美食都要香甜。<br>口水不受控制地流了下來。",
+            choices: [
+                { text: "舔一口", action: () => {
+                    log("甜美！充滿鐵鏽味的甘露順著喉嚨滑下，你的胃發出了滿足的蠕動聲。", "danger");
+                    changeStat('corruption', 20);
+                    changeStat('stamina', 15);
+                }},
+                { text: "吃壓縮餅乾", action: () => {
+                    log("你強迫自己吃下人類的食物，但它們在你嘴裡就像乾燥的灰燼，令人作嘔。", "event");
+                    changeStat('stamina', -5); // 吃不下去
+                    changeStat('sanity', -10);
+                }},
+                { text: "催吐", action: () => {
+                    log("你試圖把那種渴望感吐出來，但只吐出了一些黑色的酸水。", "danger");
+                    changeStat('stamina', -15);
+                }}
+            ]
+        },
+        "corr_friendly_shadow": {
+            text: "走廊盡頭站著那個黑影怪物。但這一次，你看得清清楚楚——那不是怪物，那是**你的家人**。<br>它張開扭曲的手臂，溫柔地呼喚你的名字。",
+            choices: [
+                { text: "走過去擁抱", action: () => {
+                    log("你投入它的懷抱，感覺冰冷黏膩。它在你耳邊低語：『再一點點，你就完全屬於我們了。』", "danger");
+                    changeStat('corruption', 25);
+                    changeStat('sanity', -15);
+                }},
+                { text: "大聲斥責", action: () => {
+                    log("你怒吼著驅趕它。它露出了受傷的表情（儘管它沒有臉），緩緩退回黑暗。", "event");
+                    changeStat('sanity', -20);
+                }},
+                { text: "開槍/攻擊", action: () => {
+                    log("你瘋狂攻擊，但打中的只有空氣。你意識到自己正在攻擊牆壁。", "danger");
+                    changeStat('stamina', -15);
+                    changeStat('sanity', -10);
+                }}
+            ]
+        },
+        "corr_rule_change": {
+            text: "你再次閱讀保安守則。上面的文字正在像蟲子一樣蠕動重組：<br>『**規則0：公寓是安全的。住戶是家人。不要抵抗變化。接受它。**』<br>這看起來才是唯一的真理。",
+            choices: [
+                { text: "大聲朗讀", action: () => {
+                    log("你的聲音變得嘶啞低沉，不像是人類的發聲構造能發出的聲音。規則銘刻進了你的腦海。", "danger");
+                    changeStat('corruption', 20);
+                    changeStat('sanity', 10); // 接受瘋狂反而回復理智
+                }},
+                { text: "燒毀守則", action: () => {
+                    log("你點燃了紙張，但火焰是綠色的。紙燒光了，那行字卻烙印在你的視網膜上。", "danger");
+                    changeStat('sanity', -25);
+                }},
+                { text: "閉眼不看", action: () => {
+                    log("你在心中默念舊的規則，試圖對抗腦中的聲音。", "event");
+                    changeStat('sanity', -10);
+                }}
+            ]
+        },
+        "corr_mirror_beauty": {
+            text: "你照鏡子。鏡中的人臉色慘白，眼球全黑，嘴角裂開到耳根，皮膚正在潰爛。<br>**天啊，這真是太完美了。** 這才是進化的終極形態。",
+            choices: [
+                { text: "欣賞自己", action: () => {
+                    log("你對著鏡子練習微笑，裂口處滲出了黑血。你看得如癡如醉。", "danger");
+                    changeStat('corruption', 15);
+                    changeStat('sanity', 5); // 審美改變
+                }},
+                { text: "砸碎鏡子", action: () => {
+                    log("『不准你毀了這麼美的藝術品！』你內心有個聲音在尖叫，你的手不聽使喚地停下了。", "danger");
+                    changeStat('sanity', -20);
+                    changeStat('corruption', 5);
+                }},
+                { text: "化妝/整理", action: () => {
+                    log("你試圖把撕裂的嘴角變得更大一點，以便符合這完美的造型。", "danger");
+                    changeStat('stamina', -20);
+                    changeStat('corruption', 10);
+                }}
+            ]
+        }
+    };
+
+    const EventLibrary = {
+        "trick_fire_check": {
+            text: "門外傳來急促拍門聲，兩個消防員神色慌張：『大樓偵測到瓦斯外洩！火勢正在蔓延！快開門讓我們進去！』",
+            choices: [
+                { text: "配合緊急狀況開門", action: () => {
+                    log("高溫氣浪將你轟飛。你手臂嚴重燒傷。", "danger");
+                    changeStat('stamina', -40);
+                    changeStat('sanity', -20);
+                }},
+                { text: "大喊：『禁止開門！』", action: () => {
+                    log("消防員表情瞬間僵硬：『真可惜...』隨後化作灰燼消失。", "success");
+                    changeStat('sanity', -5);
+                }},
+                { text: "轉身檢查監控", action: () => {
+                    log("監控顯示門口根本沒人。玻璃上卻留下一對焦黑的手印。", "danger");
+                    changeStat('sanity', -15);
+                    changeStat('stamina', -5);
+                }}
+            ]
+        },
+        "trick_blind_dog": {
+            text: "盲人老先生敲窗：『年輕人，我的導盲犬好像不舒服，能借點水嗎？』",
+            choices: [
+                { text: "給水", action: () => {
+                    log("那東西抓住你的手，尖銳指甲刺入皮肉。", "danger");
+                    changeStat('stamina', -30);
+                    changeStat('corruption', 25);
+                }},
+                { text: "嚴厲驅趕", action: () => {
+                    log("老先生露出詭異笑容：『被發現了嗎...』走進牆壁消失了。", "success");
+                    changeStat('sanity', -5);
+                }},
+                { text: "保持沉默不動", action: () => {
+                    log("狗突然發出像人類哭聲的哀嚎。", "danger");
+                    changeStat('sanity', -10);
+                }}
+            ]
+        },
+        "trick_elevator_voice": {
+            text: "電梯下行至 B1。你閉眼默數。廣播傳來清晰女聲：『B1 到了，開門。』伴隨逼真開門聲。",
+            choices: [
+                { text: "睜開眼睛離開", action: () => {
+                    log("門沒開，但有東西穿透門板衝擊了你的大腦。", "danger");
+                    changeStat('sanity', -45);
+                }},
+                { text: "繼續閉眼默數", action: () => {
+                    log("你堅持數完10秒。再次確認後，震動才真正停止。", "success");
+                    changeStat('sanity', -10);
+                }}
+            ]
+        },
+        "trick_grandma_404": {
+            text: "一位老奶奶跌倒在 **404號房** 門口，門微微打開。她伸手向你求助。",
+            choices: [
+                { text: "過去扶她", action: () => {
+                    log("404門猛地打開，無數隻手試圖將你拖進去。", "danger");
+                    changeStat('stamina', -35);
+                    changeStat('sanity', -15);
+                }},
+                { text: "低頭快速通過", action: () => {
+                    log("身後傳來變調的尖叫：『為什麼不過來！』", "success");
+                    changeStat('sanity', -15);
+                    changeStat('corruption', 5);
+                }}
+            ]
+        },
+        "trick_manager_reflection": {
+            text: "經理本人帶著 **藍色識別證**。但鏡子裡的他帶著 **紅色識別證**。",
+            choices: [
+                { text: "相信本人", action: () => {
+                    log("鏡像衝出來掐住你。你用手電筒砸碎鏡面，碎片劃破臉。", "danger");
+                    changeStat('stamina', -30);
+                    changeStat('sanity', -20);
+                }},
+                { text: "相信鏡像", action: () => {
+                    log("你假裝沒看見。經理看向鏡子，發出嘖的一聲離開了。", "success");
+                    changeStat('sanity', -10);
+                }},
+                { text: "打破鏡子", action: () => {
+                    log("你砸碎鏡子。經理消失了，只留下一地碎玻璃和紅色識別證。", "danger");
+                    changeStat('stamina', -15);
+                    changeStat('sanity', -5);
+                }}
+            ]
+        },
+        "trick_trash_rules": {
+            text: "垃圾桶旁公告：『印刷錯誤，規則7更正為——紅色飲料安全，藍色有毒。』",
+            choices: [
+                { text: "相信公告", action: () => {
+                    log("喝下紅色飲料後，你嘔吐出大量黑水。", "danger");
+                    changeStat('stamina', -40);
+                    changeStat('corruption', 20);
+                }},
+                { text: "無視公告", action: () => {
+                    log("規則書是絕對的，不能輕信路邊垃圾。", "success");
+                    changeStat('sanity', 5);
+                }},
+                { text: "帶回保安室研究", action: () => {
+                    log("紙上的字變成：『你真好騙。』然後自燃。", "event");
+                    changeStat('sanity', -5);
+                }}
+            ]
+        },
+        "courier_404": {
+            text: "快遞員在門口喊：『404是吧？怎麼沒人接？保安，幫忙聯絡一下。』",
+            choices: [
+                { text: "告訴他404沒人", action: () => {
+                    log("快遞員臉融化了：『沒人？那電話是誰接的？』", "event");
+                    changeStat('sanity', -10);
+                    changeStat('corruption', 10);
+                }},
+                { text: "拒絕代收", action: () => {
+                    log("你指了指規則牌。他轉身走進黑暗。", "success");
+                    changeStat('sanity', 5);
+                }},
+                { text: "不理會", action: () => {
+                    log("他在門口站了整整一小時。", "danger");
+                    changeStat('sanity', -15);
+                }}
+            ]
+        },
+        "laundry_red": {
+            text: "洗衣房地上扔著一件鮮紅色的連衣裙，上面似乎還殘留著體溫。",
+            choices: [
+                { text: "用手電筒確認", reqClue: "item_flashlight", action: () => {
+                    log("強光照射下，那只是普通裙子。你鬆了一口氣。", "success");
+                    changeStat('sanity', -5);
+                }},
+                { text: "燒掉它", action: () => {
+                    log("你燒了衣服，火焰呈現詭異的綠色。隔天聽說有女住戶詛咒偷衣服的人。", "danger");
+                    changeStat('corruption', 15);
+                }},
+                { text: "無視離開", action: () => {
+                    log("你轉身離開，背後傳來窸窸窣窣的穿衣聲，但你不敢回頭。", "event");
+                    changeStat('sanity', -10);
+                }}
+            ]
+        },
+        "elevator_maintain": {
+            text: "電梯顯示『維修中』，紅色的指示燈瘋狂閃爍，裡面傳來有節奏的敲擊聲。",
+            choices: [
+                { text: "按開門鍵", action: () => {
+                    log("門打開了，電梯內壁長滿了眼睛，所有的眼球同時轉向你看著你。", "danger");
+                    changeStat('sanity', -40);
+                }},
+                { text: "閉眼默數離開", action: () => {
+                    log("敲擊聲變成了尖銳的抓撓聲。你轉身跑回樓梯間，直到聲音消失。", "success");
+                    changeStat('sanity', -10);
+                    changeStat('stamina', -5);
+                }},
+                { text: "敲門回應", action: () => {
+                    log("聲音停止了。門縫傳來一聲低語：『我聽見你了。』", "danger");
+                    changeStat('corruption', 20);
+                    changeStat('sanity', -20);
+                }}
+            ]
+        },
+        "manager_id": {
+            text: "你在地上撿到經理識別證。照片上的他帶著鮮紅色識別證，嘴角咧到了耳根。",
+            choices: [
+                { text: "交給經理", action: () => {
+                    log("他接過證件笑了：『這是我遺失的臉。』隨後他的五官開始位移。", "danger");
+                    changeStat('sanity', -30);
+                }},
+                { text: "丟進垃圾桶", action: () => {
+                    log("沒過多久，識別證又出現在你口袋裡，而且變得濕黏。", "danger");
+                    changeStat('sanity', -15);
+                    changeStat('corruption', 10);
+                }},
+                { text: "撕毀證件", action: () => {
+                    log("遠處傳來一聲慘叫。經理今晚似乎不會再出現了。", "success");
+                    changeStat('sanity', 10);
+                }}
+            ]
+        },
+        "vending_leaking": {
+            text: "販賣機的一罐藍色飲料正在滲出紅色黏液，散發著鐵鏽味。",
+            choices: [
+                { text: "冒險喝下", action: () => {
+                    if (Math.random() > 0.5) {
+                        log("居然是蔓越莓汁？看來運氣不錯，你稍微恢復了體力。", "success");
+                        changeStat('sanity', 10);
+                        changeStat('stamina', 5);
+                    } else {
+                        log("入口全是血腥味。你看向罐子，上面寫著『藍血』，你感到一陣噁心。", "danger");
+                        changeStat('corruption', 25);
+                        changeStat('sanity', -15);
+                    }
+                }},
+                { text: "不喝", action: () => {
+                    log("那股甜腥味揮之不去，你快步離開了。", "event");
+                }}
+            ]
+        },
+        "manager_choice": {
+            text: "經理站在走廊盡頭，他的脖子上空空如也，手裡拿著紅藍兩條識別證問：『今晚我該戴哪條？』",
+            choices: [
+                { text: "選藍色", action: () => {
+                    log("『好品味。』他將藍識別證掛在空氣中，滿意地離開了。", "success");
+                    changeStat('sanity', 5);
+                }},
+                { text: "選紅色", action: () => {
+                    log("他衝過來，把紅識別證死死勒在你脖子上。", "danger");
+                    changeStat('stamina', -40);
+                }},
+                { text: "沉默不語", action: () => {
+                    log("他失望地搖搖頭，消失在黑暗中。", "event");
+                    changeStat('sanity', -5);
+                }}
+            ]
+        },
+        "cleaner_green": {
+            text: "你經過洗手間，鏡子映出一個穿綠色制服的人影，正背對著你拖地。",
+            choices: [
+                { text: "打破鏡子", action: () => {
+                    log("你砸碎了鏡子。那個清潔工錯愕地看著你。你好像只是浪費了體力。", "event");
+                    changeStat('stamina', -15);
+                    changeStat('sanity', -5);
+                }},
+                { text: "打招呼", action: () => {
+                    log("他轉過頭，只是一個普通的大叔。看來是你太緊張了。", "success");
+                    changeStat('sanity', 5);
+                }},
+                { text: "逃跑", action: () => {
+                    log("你一口氣跑到下一層，其實什麼事都沒發生。", "event");
+                    changeStat('stamina', -5);
+                }}
+            ]
+        },
+        "room_403_party": {
+            text: "403號房大門敞開，裡面傳來熱鬧的音樂聲和人群的歡笑聲。",
+            choices: [
+                { text: "加入派對", action: () => {
+                    log("你走進房間，音樂戛然而止。房間裡全是斷肢的人體模型。", "danger");
+                    changeStat('sanity', -15);
+                }},
+                { text: "關上門", action: () => {
+                    log("你用力關上門。音樂瞬間消失，走廊重歸死寂。", "success");
+                    changeStat('sanity', 5);
+                }},
+                { text: "低頭通過", action: () => {
+                    log("你感覺背上有無數道視線在盯著你，直到你轉過轉角。", "event");
+                }}
+            ]
+        },
+        "vending_purple": {
+            text: "販賣機裡突然出現一罐發著微弱螢光的紫色飲料，你從未見過這個牌子。",
+            choices: [
+                { text: "喝下去", action: () => {
+                    log("味道像藍莓混合著鐵鏽。你的頭腦變得異常清晰，但胃裡似乎有東西在蠕動。", "success");
+                    changeStat('sanity', 10);
+                    changeStat('corruption', 15);
+                }},
+                { text: "不喝", action: () => {
+                    log("你總覺得自己錯過了什麼重要的東西。", "event");
+                }}
+            ]
+        },
+        "manager_scarf": {
+            text: "經理今天圍著一條厚重的圍巾，完全遮住了脖子部位。",
+            choices: [
+                { text: "禮貌問好", action: () => {
+                    if (Math.random() > 0.5) {
+                        log("他解開圍巾透氣，露出了裡面的紅識別證。", "danger");
+                        changeStat('stamina', -30);
+                    } else {
+                        log("風吹起圍巾一角，你看到了藍色的識別證，你鬆了一口氣。", "success");
+                        changeStat('sanity', 5);
+                    }
+                }},
+                { text: "假裝沒看見", action: () => {
+                    log("經理經過你身邊時低聲說：『算你運氣好。』", "event");
+                    changeStat('sanity', -5);
+                }},
+                { text: "稱讚圍巾", action: () => {
+                    log("他看起來很高興。這應該是安全的。", "success");
+                    changeStat('sanity', 5);
+                }}
+            ]
+        },
+        "elevator_mirror": {
+            text: "電梯停在B1，你從電梯裡的鏡子看到門外似乎站著一個紅色的東西。",
+            choices: [
+                { text: "堅持閉眼", action: () => {
+                    log("耳邊傳來玻璃碎裂的聲音，但你緊閉雙眼。過了一會兒，電梯門關上了。安全。", "success");
+                    changeStat('sanity', -10);
+                }},
+                { text: "睜眼檢查", action: () => {
+                    log("鏡子裡，一個穿紅制服的無臉人正死死盯著你。", "danger");
+                    changeStat('sanity', -30);
+                }}
+            ]
+        },
+        "stray_dog_shadow": {
+            text: "走廊的燈光將你的影子拉得很長，牆上投射出一個像巨大獵犬的影子，並傳來沉重的喘息聲。",
+            choices: [
+                { text: "關閉光源", action: () => {
+                    log("你關掉手電筒。喘息聲在周圍徘徊了一陣後遠去了。", "success");
+                    changeStat('sanity', -5);
+                }},
+                { text: "用手電筒驅趕", reqClue: "item_flashlight", action: () => {
+                    log("影子消失了，但你發現自己的影子多了一條尾巴。", "danger");
+                    changeStat('corruption', 20);
+                    changeStat('sanity', -15);
+                }}
+            ]
+        },
+        "fake_rule_note": {
+            text: "監控螢幕上貼著一張黃色便利貼，筆跡潦草：『規則12：請對鏡頭微笑，否則它們會發現你看得見。』",
+            choices: [
+                { text: "對鏡頭微笑", action: () => {
+                    log("你看著鏡頭裡自己僵硬愚蠢的笑容，感到強烈的自我厭惡。", "event");
+                    changeStat('sanity', -10);
+                }},
+                { text: "撕掉紙條", action: () => {
+                    log("這只是無聊的惡作劇。你把它揉成一團丟了。", "success");
+                    changeStat('sanity', 5);
+                }},
+                { text: "檢查回放", action: () => {
+                    log("你調出錄影，發現從頭到尾只有你一個人在保安室...那是誰貼的？", "danger");
+                    changeStat('sanity', -20);
+                }}
+            ]
+        },
+        "toy_dog": {
+            text: "大廳空無一人，卻突然傳來『汪！』的一聲，你低頭看到一隻發條機械狗。",
+            choices: [
+                { text: "關掉它", action: () => {
+                    log("你的手指剛碰到開關，它猛地咬了你一口！", "event");
+                    changeStat('stamina', -10);
+                }},
+                { text: "用手電筒照它", reqClue: "item_flashlight", action: () => {
+                    log("在強光下，發條停止了轉動。這只是個普通的玩具。", "success");
+                    changeStat('sanity', 5);
+                }},
+                { text: "躲回保安室", action: () => {
+                    log("玩具狗噠噠噠地走進黑暗，隨後發出了一聲像人類慘叫的聲音。", "danger");
+                    changeStat('sanity', -15);
+                }}
+            ]
+        },
+        "green_drink": {
+            text: "販賣機哐噹一聲吐出一罐沒有標籤的綠色飲料。",
+            choices: [
+                { text: "喝掉它", action: () => {
+                    const outcome = Math.random();
+                    if (outcome > 0.5) {
+                        log("居然是哈密瓜汽水？喝完後精神好多了。", "success");
+                        changeStat('stamina', 20);
+                        changeStat('sanity', 10);
+                    } else {
+                        log("喝起來像是燃燒的電池液，你的食道劇痛不已。", "danger");
+                        changeStat('stamina', -20);
+                        changeStat('corruption', 10);
+                    }
+                }},
+                { text: "無視", action: () => {
+                    log("你沒有理會。再次回頭時，飲料已經不見了。", "event");
+                }}
+            ]
+        },
+        "neighbor_405": {
+            text: "405號房的住戶憤怒地衝出來吼道：『隔壁404吵死了！你們保安都不管管嗎？』",
+            choices: [
+                { text: "答應查看", action: () => {
+                    log("你去敲了404的門，門開了，裡面是無盡的深淵。", "danger");
+                    changeStat('sanity', -20);
+                    changeStat('stamina', -10);
+                }},
+                { text: "告知404沒人", action: () => {
+                    log("住戶的臉色瞬間變得慘白，什麼都沒說就跑回了房間。", "event");
+                    changeStat('sanity', -5);
+                    changeStat('corruption', 5);
+                }},
+                { text: "保持沉默", action: () => {
+                    log("住戶罵罵咧咧了一句，轉身回去了。", "success");
+                }}
+            ]
+        },
+        "neighbor_knock": {
+            text: "對講機突然響起：『我是302的住戶，我忘帶鑰匙了，幫我開一下大門！』",
+            choices: [
+                { text: "幫她開門", action: () => {
+                    log("門開了。幾秒鐘後，她出現在你身後，給了你狠狠一爪。", "danger");
+                    changeStat('stamina', -30);
+                    changeStat('sanity', -20);
+                }},
+                { text: "拒絕並檢查名單", action: () => {
+                    log("你查了名冊，302根本沒住人。對講機那頭傳來野獸般的低吼。", "success");
+                    changeStat('sanity', -5);
+                }},
+                { text: "詢問特徵", action: () => {
+                    log("『我有...紅色的眼睛...』聲音開始扭曲變形。", "danger");
+                    changeStat('sanity', -15);
+                }}
+            ]
+        },
+        "restock_man": {
+            text: "你看見有人在給販賣機補貨，但他補進去的全是鮮紅色的罐子。",
+            choices: [
+                { text: "質問", action: () => {
+                    log("他轉過頭，臉上沒有五官，只有一張巨大的嘴。", "danger");
+                    changeStat('sanity', -20);
+                    changeStat('stamina', -10);
+                }},
+                { text: "假裝沒看見", action: () => {
+                    log("等你再看過去，人已經消失了，販賣機裡塞滿了血紅色的罐子。", "event");
+                    changeStat('sanity', -5);
+                }},
+                { text: "買一罐", action: () => {
+                    log("液體濺到手上，腐蝕了你的皮膚。", "danger");
+                    changeStat('stamina', -20);
+                }}
+            ]
+        },
+        "extra_floor": {
+            text: "你走進電梯，發現控制面板上多了一個寫著『14F』的按鈕。",
+            choices: [
+                { text: "好奇按下", action: () => {
+                    log("電梯上升到了不存在的樓層。缺氧感讓你幾乎暈厥。", "danger");
+                    changeStat('stamina', -30);
+                    changeStat('sanity', -20);
+                }},
+                { text: "無視離開", action: () => {
+                    log("你選擇走樓梯離開。這最安全。", "success");
+                    changeStat('stamina', -5);
+                }},
+                { text: "拍照", action: () => {
+                    log("你拍了張照。照片顯示電梯裡其實站滿了人。", "danger");
+                    changeStat('sanity', -25);
+                    changeStat('corruption', 10);
+                }}
+            ]
+        },
+        "red_tie_gift": {
+            text: "保安室的桌上突然出現一個精美的禮盒，裡面有一條紅識別證和一張卡片：『加入我們。——經理』",
+            choices: [
+                { text: "戴上識別證", action: () => {
+                    log("你剛戴上，識別證就自動收緊，彷彿要勒斷你的脖子。", "danger");
+                    changeStat('stamina', -30);
+                }},
+                { text: "扔進垃圾桶", action: () => {
+                    log("你剛轉身，它又出現在桌上。你不敢再碰它了。", "event");
+                    changeStat('sanity', -10);
+                    changeStat('corruption', 5);
+                }}
+            ]
+        },
+        "glitch_anomaly": {
+            text: "走廊前方懸浮著一團幾何狀的黑霧，周圍的空間伴隨著強烈的數位雜訊在跳動。",
+            choices: [
+                { text: "繞道", action: () => {
+                    log("你小心翼翼地繞過了它，沒有發生異狀。", "success");
+                    changeStat('sanity', -5);
+                    changeStat('stamina', -5);
+                }},
+                { text: "觸碰", action: () => {
+                    log("指尖剛碰到，無數混亂的畫面瞬間塞滿你的大腦。", "danger");
+                    changeStat('sanity', -25);
+                    changeStat('corruption', 15);
+                }},
+                { text: "聆聽聲音", condition: () => GameState.day >= 4, action: () => {
+                    log("你聽到了來自地獄的頻率，耳朵開始流血。", "danger");
+                    changeStat('stamina', -20);
+                    changeStat('sanity', -20);
+                }}
+            ]
+        },
+        "room_404_encounter": {
+            text: "你巡邏經過404號房，門縫透出詭異的紅光，裡面傳來指甲抓撓門板的聲音。",
+            choices: [
+                { text: "看一眼", action: () => {
+                     log("紅光刺入你的眼睛，眼球劇痛無比。", "danger");
+                     changeStat('stamina', -20);
+                     changeStat('sanity', -20);
+                }},
+                { text: "低頭通過", action: () => {
+                    log("門在你身後砰地一聲關上了。你沒有回頭。", "success");
+                    changeStat('sanity', -5);
+                    changeStat('stamina', -5);
+                }},
+                { text: "幫忙關門", action: () => {
+                    log("一隻冰冷的手突然從門縫伸出抓住了你！", "danger");
+                    changeStat('stamina', -20);
+                    changeStat('corruption', 10);
+                }}
+            ]
+        },
+        "phantom_pet": {
+            text: "漆黑的樓梯角傳來微弱的貓叫聲，聽起來非常可憐。",
+            choices: [
+                { text: "查看", action: () => {
+                    log("手電筒照過去，那隻貓長著一張蒼白的人臉。", "danger");
+                    changeStat('sanity', -20);
+                }},
+                { text: "關燈安靜", action: () => {
+                    log("你關掉燈屏住呼吸。過了一會，它離開了。", "success");
+                    changeStat('sanity', -5);
+                }},
+                { text: "給罐頭", condition: () => GameState.day >= 4, action: () => {
+                    log("它沒有吃罐頭，而是咬了你的手。", "danger");
+                    changeStat('stamina', -20);
+                }}
+            ]
+        },
+        "noise_upstairs": {
+            text: "深夜的樓板上方傳來清脆的彈珠滾動聲...噠、噠、噠...聲音從臥室上方一路滾到了客廳，但你記得樓上根本沒有住人。",
+            choices: [
+                { text: "上樓查看", action: () => {
+                    log("你剛上樓梯，就有人從背後用力推了你一把！", "danger");
+                    changeStat('sanity', -20);
+                    changeStat('stamina', -15);
+                    changeStat('corruption', 5);
+                }},
+                { text: "戴上耳機", action: () => {
+                    log("聲音聽不到了，但你總覺得背後有人在對你吹氣。", "event");
+                    changeStat('sanity', -10);
+                }}
+            ]
+        },
+        "elevator_b1": {
+            text: "電梯門無聲滑開，顯示樓層為B1。裡面一片漆黑，彷彿連光線都被吞噬了，深處傳來潮濕的腐臭味。",
+            choices: [
+                { text: "走進去", action: () => {
+                    log("你剛踏進去，電梯開始急速下墜，彷彿沒有底。", "danger");
+                    changeStat('sanity', -30);
+                    changeStat('stamina', -20);
+                }},
+                { text: "默數10秒", action: () => {
+                    log("你閉眼數到10。再睜眼時門關上了，沉重的呼吸聲就在鼻尖消失。", "success");
+                    changeStat('sanity', -15);
+                }},
+                { text: "逃跑", condition: () => GameState.stamina > 25, action: () => {
+                    log("你狂奔回保安室，鎖上了門。", "event");
+                    changeStat('stamina', -25);
+                }}
+            ]
+        },
+        "phone_call": {
+            text: "寂靜的保安室裡，那台早已拔掉線路的內線電話突然發出刺耳的鈴聲，紅色的信號燈瘋狂閃爍。",
+            choices: [
+                { text: "接起", action: () => {
+                    if (Math.random() < 0.5) {
+                        log("話筒裡傳來你自己的聲音：『別回頭...』", "danger");
+                        changeStat('sanity', -25);
+                    } else {
+                        log("刺耳的尖叫聲幾乎刺破你的耳膜！", "danger");
+                        changeStat('sanity', -15);
+                        changeStat('stamina', -10);
+                    }
+                }},
+                { text: "拔掉電話線", action: () => {
+                    log("你拔掉了線，但鈴聲又響了整整三聲才停下。", "event");
+                    changeStat('sanity', -10);
+                    changeStat('corruption', 5);
+                }}
+            ]
+        },
+        "vending_machine": {
+            text: "走廊盡頭的販賣機燈光忽明忽暗，發出嗡嗡的電流聲。",
+            choices: [
+                { text: "買藍色飲料", action: () => {
+                    if (GameState.day >= 4) {
+                        log("飲料滾出來，裡面漂浮著一顆眼球。", "danger");
+                        changeStat('sanity', -15);
+                        changeStat('corruption', 10);
+                    } else {
+                        log("冰涼的飲料讓你精神一振。", "success");
+                        changeStat('stamina', 15);
+                        changeStat('sanity', 5);
+                    }
+                }},
+                { text: "買紅色飲料", action: () => {
+                     log("喝起來像血...但異常香甜，你忍不住想再喝一罐。", "danger");
+                     changeStat('corruption', 40);
+                     changeStat('sanity', -30);
+                }},
+                { text: "踢一下機台", action: () => {
+                    log("哐噹！掉下來一罐生鏽的綠色罐子。", "event");
+                    changeStat('stamina', -5);
+                }}
+            ]
+        },
+        "midnight_delivery": {
+            text: "暴雨夜，一個穿著黃色雨衣的人站在玻璃門外，指著地上的包裹示意你簽收。",
+            choices: [
+                { text: "開門", action: () => {
+                    log("門剛開，它就化作一攤黑泥衝了進來。", "danger");
+                    changeStat('stamina', -30);
+                    changeStat('corruption', 20);
+                }},
+                { text: "拒絕", action: () => {
+                    log("它僵硬地點點頭，消失在雨中。", "success");
+                    changeStat('sanity', -5);
+                }},
+                { text: "查看包裹", reqClue: "clue_package", action: () => {
+                    log("你拿出手機拍照存證，它似乎被閃光燈嚇跑了。", "success");
+                    changeStat('sanity', 5);
+                }}
+            ]
+        },
+        "cctv_anomaly": {
+            text: "你注意到13樓走廊的監視器畫面裡，有一群人正背對著鏡頭一動也不動。",
+            choices: [
+                { text: "仔細觀察", action: () => {
+                    log("突然，所有人同時轉過頭看向鏡頭！屏幕瞬間炸裂。", "danger");
+                    changeStat('sanity', -30);
+                    changeStat('corruption', 10);
+                }},
+                { text: "關閉螢幕", action: () => {
+                    log("你關掉了螢幕。幾秒後，門外傳來了整齊的腳步聲。", "event");
+                    changeStat('sanity', -10);
+                    changeStat('stamina', -5);
+                }}
+            ]
+        },
+        "hallway_shadow": {
+            text: "巡邏時，你看見走廊盡頭站著一個高大的人形黑影，似乎在等待著誰。",
+            choices: [
+                { text: "用手電筒照", reqClue: "item_flashlight", action: () => {
+                    log("光線照過去，那裡只掛著一件舊大衣。", "event");
+                    changeStat('sanity', -5);
+                }},
+                { text: "躲在桌下", action: () => {
+                    log("你屏住呼吸。它在門口徘徊了一陣後離開了。", "success");
+                    changeStat('stamina', -5);
+                }}
+            ]
+        },
+        "strange_smell": {
+            text: "空氣中突然瀰漫著一股燒焦的味道，隱約還能聽到細微的求救聲。",
+            choices: [
+                { text: "尋找來源", action: () => {
+                    log("你在角落發現了一堆正在燃燒的紙錢。", "danger");
+                    changeStat('sanity', -15);
+                    changeStat('corruption', 5);
+                }},
+                { text: "無視", action: () => {
+                    log("味道讓你感到強烈的噁心和頭暈。", "event");
+                    changeStat('stamina', -10);
+                }}
+            ]
+        },
+        "crying_baby": {
+            text: "夜深人靜，不知從哪裡傳來了淒厲的嬰兒哭聲，在空蕩的走廊迴盪。",
+            choices: [
+                { text: "尋找哭聲", action: () => {
+                    log("你找到了一個被遺棄的舊洋娃娃，眼睛被挖空了。", "event");
+                    changeStat('sanity', -10);
+                }},
+                { text: "戴上耳塞", action: () => {
+                    log("沒用。哭聲直接在你的腦海深處響起。", "danger");
+                    changeStat('sanity', -20);
+                }}
+            ]
+        },
+        "manager_visit": {
+            text: "經理（帶著紅識別證）突然出現在窗口，遞給你一杯水：『辛苦了，喝口水吧。』",
+            choices: [
+                { text: "喝水", action: () => {
+                    log("水像岩漿一樣灼燒著你的喉嚨。", "danger");
+                    changeStat('stamina', -30);
+                }},
+                { text: "無視", action: () => {
+                    log("他在窗外磨牙，發出咯吱咯吱的聲音，最後離開了。", "success");
+                    changeStat('sanity', -15);
+                }},
+                { text: "質詢識別證", reqClue: "clue_manager", action: () => {
+                    log("被拆穿後，他化作一團黑霧消散了。", "success");
+                    changeStat('sanity', 10);
+                }}
+            ]
+        },
+        "lost_girl": {
+            text: "一個穿著睡衣的小女孩蹲在牆角哭泣，看起來迷路了。",
+            choices: [
+                { text: "上前安慰", action: () => {
+                    log("她抬起頭，臉上沒有五官。她抱住你，開始吸食你的體溫。", "danger");
+                    changeStat('corruption', 30);
+                    changeStat('stamina', -30);
+                }},
+                { text: "用手電筒照", reqClue: "item_flashlight", action: () => {
+                    log("在強光下，小女孩的身影慢慢消散了。", "success");
+                    changeStat('sanity', 5);
+                }},
+                { text: "躲回保安室", action: () => {
+                    log("哭聲變成了尖銳的嬉笑聲，漸漸遠去。", "event");
+                    changeStat('sanity', -10);
+                }}
+            ]
+        },
+        "power_outage": {
+            text: "公寓突然停電，四周陷入死寂，你聽到地板上傳來濕膩的爬行聲。",
+            choices: [
+                { text: "用手電筒", reqClue: "item_flashlight", action: () => {
+                    log("光束逼退了黑暗中靠近的影子。", "success");
+                    changeStat('stamina', -5);
+                }},
+                { text: "保持不動", action: () => {
+                    log("有東西爬過了你的鞋面，留下一灘黏液。", "event");
+                    changeStat('sanity', -20);
+                    changeStat('corruption', 10);
+                }},
+                { text: "去配電室", condition:()=>GameState.stamina > 30, action: () => {
+                    log("配電室裡沾滿了黏液，你滑了一跤。", "danger");
+                    changeStat('stamina', -20);
+                    changeStat('corruption', 20);
+                }}
+            ]
+        },
+        "blood_moon": {
+            text: "窗外的月亮變成了鮮血般的紅色，將整個大廳染成了詭異的緋紅。",
+            choices: [
+                { text: "欣賞", action: () => {
+                    log("你感覺靈魂正在被一點點剝離身體。", "danger");
+                    changeStat('sanity', -40);
+                    changeStat('corruption', 20);
+                }},
+                { text: "躲桌下", action: () => {
+                    log("你躲在桌下瑟瑟發抖，直到紅光退去。", "success");
+                    changeStat('sanity', -20);
+                }}
+            ]
+        },
+        "red_lady_encounter": {
+            text: "紅衣女子出現在你面前。她的臉變成了你母親的樣子，張開雙臂等你。",
+            choices: [
+                { text: "後退", action: () => {
+                    log("那不是你母親，那是散發著惡臭的腐爛屍體。", "success");
+                    changeStat('sanity', -15);
+                }},
+                { text: "擁抱", action: () => {
+                    log("她抱住你的瞬間，尖銳的肋骨刺穿了你的胸膛。", "danger");
+                    changeStat('stamina', -50);
+                }},
+                { text: "無視通過", reqClue: "clue_red_lady", action: () => {
+                    log("擦肩而過時，你聽到耳邊傳來：『你看得見我，對吧？』", "success");
+                    changeStat('sanity', -5);
+                    changeStat('corruption', 5);
+                }}
+            ]
+        },
+        "mirror_reflection": {
+            text: "你照鏡子整理儀容，卻發現鏡中的倒影穿著紅衣，正微笑著向你伸出手。",
+            choices: [
+                { text: "打破鏡子", action: () => {
+                    log("你的手流血了，但鏡中的倒影發出了淒厲的慘叫。", "success");
+                    changeStat('stamina', -20);
+                    GameState.flags['mirror_broken'] = true;
+                }},
+                { text: "詢問秘密", reqClue: "clue_mirror", action: () => {
+                    log("倒影的嘴唇蠕動：『它是時間的奴隸。』", "success");
+                    changeStat('sanity', -10);
+                    GameState.clues.push('clue_final_hint');
+                }},
+                { text: "整理制服", action: () => {
+                     log("你的靈魂彷彿被鏡子拉扯，劇痛無比。", "danger");
+                     changeStat('sanity', -30);
+                     changeStat('corruption', 20);
+                }}
+            ]
+        },
+        "final_confrontation": {
+            text: "門外傳來早班老王的求救聲：『快開門啊！後面有怪物在追我！』",
+            choices: [
+                { text: "開門", action: () => {
+                    log("門外站著的只是一張漂浮的人皮。你的生命力瞬間被抽空。", "danger");
+                    changeStat('stamina', -90);
+                }},
+                { text: "死守", action: () => {
+                    log("門板被瘋狂撞擊，彷彿隨時會碎裂。", "danger");
+                    changeStat('stamina', -50);
+                }},
+                { text: "問名字", reqClue: "clue_manager", action: () => {
+                    log("門外沉默了許久，傳來一聲：『我...忘...了...』", "success");
+                }}
+            ]
+        }
+    };
+</script>
+</body>
+</html>
