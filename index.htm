@@ -488,91 +488,105 @@
     transform: scale(1.05);          /* 稍微放大 */
 }
 
-/* --- 手機版適配 (Mobile Responsive) --- */
+/* --- 手機版終極修正 (針對按鈕消失問題) --- */
 @media (max-width: 768px) {
-    /* 1. 調整頭部佈局：改為垂直堆疊，確保資訊不重疊 */
+    /* 1. 修正高度問題：使用 dvh (Dynamic Viewport Height) 
+       這能自動扣除手機瀏覽器網址列的高度 */
+    body {
+        height: 100dvh; 
+        overflow: hidden; /* 禁止整體捲動，只讓對話框捲動 */
+    }
+
+    /* 2. 壓縮頂部資訊欄：手機直向空間寶貴，要變緊湊 */
     header {
-        height: auto; /* 高度自動 */
-        flex-direction: column;
-        padding: 10px;
-        gap: 10px;
-        background: rgba(10, 10, 10, 0.95);
+        height: auto;
+        padding: 5px 10px;
+        flex-wrap: wrap;
+        font-size: 0.75rem; /* 字體縮小 */
+        gap: 5px;
+        justify-content: space-between;
     }
 
     .status-group {
+        flex-direction: row; /* 保持橫向 */
+        gap: 10px;
         width: 100%;
-        display: flex;
-        justify-content: space-between; /* 狀態分散對齊 */
-        font-size: 0.95rem; /* 字體稍微調大 */
-        border-bottom: 1px dashed #333;
-        padding-bottom: 5px;
-    }
-    
-    /* 去除最後一個群組的底線 */
-    .status-group:last-of-type {
-        border-bottom: none;
-        padding-bottom: 0;
+        justify-content: space-between;
+        border-bottom: 1px solid #222;
+        padding-bottom: 2px;
+        margin-bottom: 2px;
     }
 
-    /* 2. 操作按鈕欄位優化 */
-    #action-bar {
-        width: 100%;
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr; /* 三個按鈕平分寬度 */
-        gap: 8px;
+    /* 隱藏裝飾性的標籤，只顯示數值，節省空間 */
+    .status-item { 
+        display: flex; 
+        align-items: center; 
     }
 
-    .action-btn {
-        padding: 10px 0; /* 增加點擊區域 */
-        font-size: 0.9rem;
-        text-align: center;
-    }
-
-    /* 3. 遊戲主區域優化 */
+    /* 3. 確保遊戲主區域正確伸縮 */
     #game-container {
-        width: 100vw;
+        flex: 1; /* 佔據剩餘空間 */
+        min-height: 0; /* 關鍵：防止內容過長時撐開容器導致按鈕被推走 */
+        display: flex;
+        flex-direction: column;
     }
 
     #game-log {
-        font-size: 1rem; /* 增大閱讀字體 */
+        flex: 1;
+        overflow-y: auto; /* 只有這裡可以捲動 */
         padding: 15px;
-        padding-bottom: 80px; /* 防止被底部遮擋 */
+        font-size: 0.95rem;
+        /* 增加底部留白，防止文字貼底 */
+        padding-bottom: 20px; 
     }
 
-    /* 4. 選項按鈕區 (增加手指點擊面積) */
+    /* 4. 固定並優化按鈕區 */
     #choices-area {
-        max-height: 50vh; /* 避免佔據太多螢幕 */
-        padding: 15px;
+        flex-shrink: 0; /* 關鍵：禁止此區域被壓縮或推擠 */
+        max-height: 40vh; /* 限制最大高度 */
+        padding: 10px;
+        background: #0c0c0c;
+        border-top: 1px solid #333;
+        z-index: 100; /* 確保浮在最上層 */
+        
+        /* 針對 iPhone X 以上的底部橫條 (Home Indicator) 避讓 */
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
     }
 
     button {
-        padding: 18px 15px; /* 更大的觸控範圍 */
-        font-size: 1.05rem;
-        margin-bottom: 5px;
+        padding: 12px 15px; /* 適中大小 */
+        font-size: 1rem;
+        margin-bottom: 8px;
     }
 
-    /* 5. 模態視窗 (Modal) 適配 */
-    .modal-content {
-        width: 95%; /* 佔滿手機寬度 */
-        max-height: 85%;
-        padding: 15px;
-        margin-top: 20px;
+    /* 5. 監控與功能按鈕優化 */
+    #action-bar {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px;
     }
     
-    /* 6. CCTV 系統適配 */
+    .action-btn {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+    }
+
+    /* 6. CCTV 視窗調整 */
+    #cctv-modal .modal-content {
+        height: 80vh;
+        width: 95vw;
+        margin-top: 10vh;
+    }
     #cctv-screen {
-        height: 200px; /* 手機上縮小高度 */
+        height: 180px;
     }
-    
     .cam-btn-group {
-        grid-template-columns: repeat(2, 1fr); /* 改為兩列，防止按鈕太擠 */
+        grid-template-columns: repeat(3, 1fr);
     }
-    
-    /* 讓"鎖定空間並更新"按鈕獨佔一行 */
-    .cam-btn:last-child {
-        grid-column: span 2;
-        padding: 15px;
-        font-weight: bold;
+    .cam-btn {
+        padding: 8px;
+        font-size: 0.8rem;
     }
 }
 
