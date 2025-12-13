@@ -589,6 +589,80 @@
         font-size: 0.8rem;
     }
 }
+@media (max-width: 768px) {
+    /* 1. 提升層級：確保監控視窗浮在所有特效(掃描線)之上，才好點擊 */
+    .modal {
+        z-index: 2000 !important;
+    }
+
+    /* 2. 彈窗佈局改為「彈性盒子」，讓內容自動適應高度 */
+    #cctv-modal .modal-content {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 95vw;
+        height: 85dvh; /* 使用動態高度，留一點邊距 */
+        max-height: none; /* 解除限制 */
+        
+        display: flex;
+        flex-direction: column; /* 垂直排列 */
+        overflow: hidden; /* 禁止整個大框框捲動 */
+        padding: 15px;
+    }
+
+    /* 3. 標題與警告文字：固定不縮放 */
+    #cctv-modal h2 {
+        flex-shrink: 0;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+    }
+    
+    #cctv-modal .modal-content > div:last-child {
+        flex-shrink: 0;
+        font-size: 0.75rem;
+        margin-top: 5px;
+    }
+
+    /* 4. 監控螢幕：固定高度，避免太佔位 */
+    #cctv-screen {
+        flex-shrink: 0;
+        height: 30vh; /* 佔據螢幕約 1/3 */
+        min-height: 180px;
+        margin-bottom: 10px;
+    }
+
+    /* 5. 關鍵修復：按鈕區域設為「可獨立捲動」 */
+    #cctv-controls {
+        flex: 1; /* 佔據剩下的所有空間 */
+        overflow-y: auto; /* 只有這個區域可以滑動！ */
+        -webkit-overflow-scrolling: touch; /* iOS 滑動優化 */
+        
+        display: grid;
+        grid-template-columns: repeat(2, 1fr); /* 按鈕排成兩列 */
+        gap: 8px;
+        align-content: start; /* 按鈕靠上對齊 */
+        padding-right: 5px; /* 留給捲軸一點空間 */
+    }
+
+    /* 讓按鈕更好按 */
+    .cam-btn {
+        padding: 15px 5px;
+        min-height: 50px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* 讓「鎖定空間並更新」按鈕橫跨兩欄，特別顯眼 */
+    .cam-btn:last-child {
+        grid-column: 1 / -1; /* 橫跨所有欄位 */
+        margin-top: 5px;
+        background: rgba(0, 50, 0, 0.8);
+        border: 1px dashed #0f0;
+    }
+}
 
     </style>
 </head>
