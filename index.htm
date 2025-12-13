@@ -488,6 +488,94 @@
     transform: scale(1.05);          /* 稍微放大 */
 }
 
+/* --- 手機版適配 (Mobile Responsive) --- */
+@media (max-width: 768px) {
+    /* 1. 調整頭部佈局：改為垂直堆疊，確保資訊不重疊 */
+    header {
+        height: auto; /* 高度自動 */
+        flex-direction: column;
+        padding: 10px;
+        gap: 10px;
+        background: rgba(10, 10, 10, 0.95);
+    }
+
+    .status-group {
+        width: 100%;
+        display: flex;
+        justify-content: space-between; /* 狀態分散對齊 */
+        font-size: 0.95rem; /* 字體稍微調大 */
+        border-bottom: 1px dashed #333;
+        padding-bottom: 5px;
+    }
+    
+    /* 去除最後一個群組的底線 */
+    .status-group:last-of-type {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    /* 2. 操作按鈕欄位優化 */
+    #action-bar {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr; /* 三個按鈕平分寬度 */
+        gap: 8px;
+    }
+
+    .action-btn {
+        padding: 10px 0; /* 增加點擊區域 */
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    /* 3. 遊戲主區域優化 */
+    #game-container {
+        width: 100vw;
+    }
+
+    #game-log {
+        font-size: 1rem; /* 增大閱讀字體 */
+        padding: 15px;
+        padding-bottom: 80px; /* 防止被底部遮擋 */
+    }
+
+    /* 4. 選項按鈕區 (增加手指點擊面積) */
+    #choices-area {
+        max-height: 50vh; /* 避免佔據太多螢幕 */
+        padding: 15px;
+    }
+
+    button {
+        padding: 18px 15px; /* 更大的觸控範圍 */
+        font-size: 1.05rem;
+        margin-bottom: 5px;
+    }
+
+    /* 5. 模態視窗 (Modal) 適配 */
+    .modal-content {
+        width: 95%; /* 佔滿手機寬度 */
+        max-height: 85%;
+        padding: 15px;
+        margin-top: 20px;
+    }
+    
+    /* 6. CCTV 系統適配 */
+    #cctv-screen {
+        height: 200px; /* 手機上縮小高度 */
+    }
+    
+    .cam-btn-group {
+        grid-template-columns: repeat(2, 1fr); /* 改為兩列，防止按鈕太擠 */
+    }
+    
+    /* 讓"鎖定空間並更新"按鈕獨佔一行 */
+    .cam-btn:last-child {
+        grid-column: span 2;
+        padding: 15px;
+        font-weight: bold;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -1031,17 +1119,29 @@ generatePassiveThreats: function() {
         if (GameState.sanity < 40 && Math.random() < 0.5) btn.classList.add('btn-shake');
         if (GameState.sanity < 60 && Math.random() < 0.3) btn.classList.add('btn-blur');
 
-        // --- Meta Horror: 逃跑的按鈕 (新增功能) ---
-        // 如果這個選項是「安全的」(isRest) 但玩家處於「高污染」狀態，按鈕會拒絕被點擊
+        // --- Meta Horror: 逃跑的按鈕 (新增功能 - 手機修復版) ---
         if (isRest && GameState.corruption > 60) {
-            btn.onmouseover = function() {
-                // 按鈕隨機跳動位置
-                const x = (Math.random() - 0.5) * 200;
-                const y = (Math.random() - 0.5) * 200;
+            // 定義逃跑行為
+            const runAway = function(e) {
+                // 如果是觸控事件，阻止預設點擊行為
+                if(e && e.type === 'touchstart') {
+                     e.preventDefault(); 
+                     e.stopPropagation(); // 阻止冒泡，確保不會觸發 click
+                }
+                
+                // 按鈕隨機跳動位置 (手機上範圍小一點，避免跑出螢幕)
+                const range = window.innerWidth < 600 ? 100 : 200;
+                const x = (Math.random() - 0.5) * range;
+                const y = (Math.random() - 0.5) * range;
+                
                 this.style.transform = `translate(${x}px, ${y}px)`;
                 this.style.borderColor = "red";
                 this.innerText = "你不配休息";
+                SoundSystem.play('type'); // 加個聲音增加嚇人效果
             };
+
+            btn.onmouseover = runAway;  // 電腦版
+            btn.ontouchstart = runAway; // 手機版
         }
 
         btn.onmouseenter = () => SoundSystem.play('hover');
