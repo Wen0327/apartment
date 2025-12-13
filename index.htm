@@ -1691,13 +1691,10 @@ generatePassiveThreats: function() {
         else if (day === 5 && time === "03:00") event = EventLibrary["mirror_reflection"];
         else if (day === 6 && time === "23:00") event = EventLibrary["blood_moon"];
         else {
-            // 2. 汙染事件檢定機制 (新增邏輯)
-            // 只有當汙染 > 15 時才有可能觸發
+            // 2. 汙染事件檢定機制
             let isCorruptionEvent = false;
             
             if (GameState.corruption > 15) {
-                // 機率公式：(當前汙染值 / 1.2)% 的機率觸發汙染事件
-                // 例如汙染 60 時，有 50% 機率觸發
                 const corruptionChance = GameState.corruption / 120; 
                 if (Math.random() < corruptionChance) {
                     isCorruptionEvent = true;
@@ -1705,15 +1702,18 @@ generatePassiveThreats: function() {
             }
 
             if (isCorruptionEvent) {
-                // 從汙染事件庫中隨機抽取
                 const corrKeys = Object.keys(CorruptionEventLibrary);
-                const randKey = corrKeys[Math.floor(Math.random() * corrKeys.length)];
-                event = CorruptionEventLibrary[randKey];
-                
-                // 播放故障音效
+                // 防呆：確保汙染事件庫有東西
+                if (corrKeys.length > 0) {
+                    const randKey = corrKeys[Math.floor(Math.random() * corrKeys.length)];
+                    event = CorruptionEventLibrary[randKey];
+                }
                 SoundSystem.play('glitch');
-            } else {
-                // 3. 標準隨機事件 (原本的邏輯)
+            } 
+            
+            // 如果不是汙染事件，或汙染事件抓取失敗，則執行標準事件
+            if (!event) {
+                // 3. 標準隨機事件
                 const fullPool = [
                     "noise_upstairs", "elevator_b1", "phone_call", "vending_machine", 
                     "hallway_shadow", "strange_smell", "crying_baby", 
@@ -1727,13 +1727,43 @@ generatePassiveThreats: function() {
                     "trick_fire_check", "trick_blind_dog", "trick_elevator_voice",  
                     "trick_grandma_404", "trick_manager_reflection", "trick_trash_rules"
                 ];
+                
                 let availablePool = fullPool.filter(id => !GameState.usedEvents.includes(id));
                 if (availablePool.length === 0) { availablePool = fullPool; GameState.usedEvents = []; }
-                const randId = availablePool[Math.floor(Math.random() * availablePool.length)];
-                GameState.usedEvents.push(randId);
-                event = EventLibrary[randId];
+                
+                // --- 修正重點：安全抽取迴圈 ---
+                let validEventFound = false;
+                let attempts = 0;
+                
+                while (!validEventFound && attempts < 10) {
+                    const randId = availablePool[Math.floor(Math.random() * availablePool.length)];
+                    
+                    if (EventLibrary[randId]) {
+                        event = EventLibrary[randId];
+                        GameState.usedEvents.push(randId);
+                        validEventFound = true;
+                    } else {
+                        console.error("發現無效的事件 ID:", randId); // 在控制台報錯，但不卡死遊戲
+                        // 從暫時池中移除這個壞掉的 ID，避免下次馬上又抽到
+                        availablePool = availablePool.filter(id => id !== randId);
+                        if(availablePool.length === 0) availablePool = fullPool; 
+                    }
+                    attempts++;
+                }
             }
         }
+
+        // --- 最終防呆：如果 event 還是 null (極端狀況)，給一個預設事件 ---
+        if (!event) {
+            console.warn("生成事件失敗，使用備用事件。");
+            event = {
+                text: "走廊上一片死寂，只有電流的嗡嗡聲...什麼事都沒發生。",
+                choices: [
+                    { text: "繼續巡邏", action: () => { log("你繼續前往下一個巡邏點。", "event"); } }
+                ]
+            };
+        }
+
         renderEvent(event);
     }
 
