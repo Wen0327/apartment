@@ -1768,16 +1768,17 @@ generatePassiveThreats: function() {
     }
 
     function renderEvent(eventData) {
-        // 檢查是否為汙染事件 (比對是否來自 CorruptionEventLibrary)
         const isCorrupted = Object.values(CorruptionEventLibrary).some(e => e.text === eventData.text);
         
-        // 如果是汙染事件，添加警告前綴
         let prefix = "";
         if (isCorrupted) {
             prefix = "<span style='color:#ef5350; font-family:Impact; letter-spacing:1px;'>[ 警告：思維遭到入侵 ]</span><br>";
         }
 
-        log(prefix + eventData.text, isCorrupted ? 'insane' : 'event', () => {
+        // 確保 eventData.text 存在，防止報錯
+        const eventText = eventData.text || "（無法解析的事件信號...）";
+
+        log(prefix + eventText, isCorrupted ? 'insane' : 'event', () => {
             const area = document.getElementById('choices-area');
             area.innerHTML = "";
 
@@ -1786,38 +1787,63 @@ generatePassiveThreats: function() {
                 choices.sort(() => Math.random() - 0.5);
             }
 
-            let validChoicesCount = 0;
-
             choices.forEach(choice => {
+                // 安全檢查：確保 choice 對象完整
+                if (!choice) return;
+                
                 if (choice.reqClue && !GameState.clues.includes(choice.reqClue)) return;
-                if (choice.condition && !choice.condition()) return;
+                
+                // 增加 try-catch 包裹條件判斷，防止 condition 函數報錯
+                try {
+                    if (choice.condition && !choice.condition()) return;
+                } catch(e) { console.warn("Condition check failed", e); return; }
+
                 if (choice.sanityGate && GameState.sanity < choice.sanityGate) return;
 
-                validChoicesCount++;
                 let isInsane = false;
-                let btnText = choice.text;
+                let btnText = choice.text || "???";
 
-                // 汙染事件的按鈕預設帶有瘋狂效果
                 if (isCorrupted || (GameState.sanity < 20 && Math.random() < 0.3)) {
                     isInsane = true;
-                    // 如果是普通事件但在低理智下，文字可能會變亂
                     if (!isCorrupted && GameState.sanity < 20) btnText = "死死死死死死死死";
                 }
 
                 createButton(btnText, () => {
-                    log(`> 選擇：${choice.text.replace(/<[^>]*>?/gm, '')}`, "system");
-                    choice.action();
-                    if (!GameState.isGameOver) {
-                        setTimeout(() => {
-                            GameState.timeIndex++;
-                            nextTimeBlock();
-                        }, 1500 + (Math.random() * 1000));
+                    // 使用 flag 防止重複推進
+                    let hasAdvanced = false;
+
+                    try {
+                        // 1. 先嘗試記錄日誌 (移入 try 區塊)
+                        const safeText = choice.text ? choice.text.replace(/<[^>]*>?/gm, '') : "行動";
+                        log(`> 選擇：${safeText}`, "system");
+                        
+                        // 2. 執行選項邏輯
+                        if (choice.action) {
+                            choice.action();
+                        }
+                    } catch(err) {
+                        console.error("Event Action Error:", err);
+                        // 發生錯誤時給予提示，但不中斷遊戲
+                        log("你試圖做出行動，但意識模糊了一瞬間...", "system");
+                    } finally {
+                        // 3. 無論成功或失敗，只要遊戲沒結束，都嘗試推進時間
+                        if (!GameState.isGameOver && !hasAdvanced) {
+                            hasAdvanced = true;
+                            setTimeout(() => {
+                                // 再次檢查遊戲是否在等待期間結束
+                                if (!GameState.isGameOver) {
+                                    GameState.timeIndex++;
+                                    nextTimeBlock();
+                                }
+                            }, 1500 + (Math.random() * 1000));
+                        }
                     }
                 }, isInsane);
             });
             
             area.classList.add('show');
 
+            // 只有在遊戲未結束且按鈕生成後才啟動計時
             if (!GameState.isGameOver) {
                 PanicSystem.start(10, () => { 
                     const allBtns = document.querySelectorAll('#choices-area button');
