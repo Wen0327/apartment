@@ -1324,7 +1324,7 @@ generatePassiveThreats: function() {
         let hueRotate = 0;
 
         if (GameState.sanity < 60) {
-            blurAmount = (60 - GameState.sanity) / 30;
+            blurAmount = (60 - GameState.sanity) / 60;
             saturateAmount = 100 - (60 - GameState.sanity) * 2;
         }
         if (GameState.sanity < 30) {
