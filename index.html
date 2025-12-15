@@ -206,7 +206,12 @@
 
       import { CCTVSystem } from "./System/CCTVSystem.js";
 
-      import { log, changeStat, typeWriter } from "./Utils/GameUtils.js";
+      import {
+        log,
+        changeStat,
+        typeWriter,
+        updateUI,
+      } from "./Utils/GameUtils.js";
 
       // --- 恐慌與倒數系統 ---
       const PanicSystem = {
@@ -456,51 +461,6 @@
         document.body.style.filter = `blur(${blurAmount}px) saturate(${saturateAmount}%) hue-rotate(${hueRotate}deg) contrast(${
           100 + (100 - GameState.sanity) / 2
         }%)`;
-      }
-
-      function updateUI() {
-        document.getElementById("disp-day").innerText = GameState.day;
-        document.getElementById("disp-time").innerText =
-          GameState.phase === "DAY"
-            ? "白天"
-            : GameState.timePoints[GameState.timeIndex];
-
-        const getTxt = (type, val) => {
-          for (let i of StatusTexts[type]) if (val >= i.t) return i.v;
-          return StatusTexts[type][StatusTexts[type].length - 1].v;
-        };
-
-        // --- Meta Horror: 虛假數值 (新增功能) ---
-        // 當理智極低時，顯示虛假的「正常」狀態，讓玩家誤判
-        let showFakeUI = GameState.sanity < 20 && Math.random() < 0.5;
-
-        const sanityEl = document.getElementById("disp-sanity");
-        const staminaEl = document.getElementById("disp-stamina");
-        const corrEl = document.getElementById("disp-corruption");
-
-        if (showFakeUI) {
-          // 欺騙玩家一切正常
-          sanityEl.innerText = "極佳";
-          sanityEl.classList.add("fake-stat");
-
-          staminaEl.innerText = "無限";
-          staminaEl.classList.add("fake-stat");
-
-          corrEl.innerText = "無";
-        } else {
-          // 正常顯示
-          sanityEl.innerText = getTxt("sanity", GameState.sanity);
-          staminaEl.innerText = getTxt("stamina", GameState.stamina);
-          corrEl.innerText = getTxt("corruption", GameState.corruption);
-
-          // 移除特效
-          sanityEl.classList.remove("fake-stat");
-          staminaEl.classList.remove("fake-stat");
-        }
-
-        updateVisualFilters();
-        if (GameState.isGameOver) return;
-        checkDeath();
       }
 
       function checkDeath() {
