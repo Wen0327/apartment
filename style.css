@@ -1,0 +1,1036 @@
+:root {
+  --bg-color: #020202;
+  --text-color: #b0b0b0;
+  --highlight-color: #4caf50;
+  --danger-color: #d32f2f;
+  --warning-color: #ff9800;
+  --dim-color: #444;
+  --panel-bg: #0a0a0a;
+  --border-color: #333;
+  --header-height: 70px;
+}
+
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: "Courier New", Courier, monospace;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: filter 0.5s ease;
+}
+
+/* --- 視覺增強：暗角與雜訊 --- */
+.vignette {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(
+    circle,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0.8) 100%
+  );
+  pointer-events: none;
+  z-index: 998;
+}
+
+.crt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.06),
+      rgba(0, 255, 0, 0.02),
+      rgba(0, 0, 255, 0.06)
+    );
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+  z-index: 999;
+  animation: flicker 0.15s infinite;
+}
+
+@keyframes flicker {
+  0% {
+    opacity: 0.92;
+  }
+
+  50% {
+    opacity: 0.88;
+  }
+
+  100% {
+    opacity: 0.92;
+  }
+}
+
+/* --- 特效動畫 --- */
+@keyframes damage-flash {
+  0% {
+    box-shadow: inset 0 0 0 transparent;
+    background-color: rgba(255, 0, 0, 0);
+  }
+
+  20% {
+    box-shadow: inset 0 0 150px var(--danger-color);
+    background-color: rgba(50, 0, 0, 0.2);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0 transparent;
+    background-color: transparent;
+  }
+}
+
+@keyframes sanity-flash {
+  0% {
+    filter: invert(0);
+    transform: scale(1);
+  }
+
+  10% {
+    filter: invert(0.5);
+    transform: scale(1.02) skewX(5deg);
+  }
+
+  20% {
+    filter: invert(0);
+    transform: scale(1);
+  }
+
+  30% {
+    filter: invert(0.2);
+    transform: scale(0.98) skewX(-5deg);
+  }
+
+  100% {
+    filter: invert(0);
+    transform: scale(1);
+  }
+}
+
+.effect-damage {
+  animation: damage-flash 0.4s ease-out;
+}
+
+.effect-sanity {
+  animation: sanity-flash 0.5s ease-out;
+}
+
+/* --- 標題欄 --- */
+header {
+  background-color: var(--panel-bg);
+  border-bottom: 1px solid var(--border-color);
+  height: var(--header-height);
+  padding: 5px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  z-index: 20;
+  position: relative;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.status-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+@media (min-width: 600px) {
+  .status-group {
+    flex-direction: row;
+    gap: 20px;
+    align-items: center;
+  }
+}
+
+.status-item span {
+  font-weight: bold;
+  transition: color 0.3s;
+}
+
+.status-sanity {
+  color: #29b6f6;
+  text-shadow: 0 0 8px rgba(41, 182, 246, 0.4);
+}
+
+.status-stamina {
+  color: #9ccc65;
+  text-shadow: 0 0 8px rgba(156, 204, 101, 0.4);
+}
+
+.status-corruption {
+  color: #ef5350;
+  text-shadow: 0 0 8px rgba(239, 83, 80, 0.4);
+}
+
+/* --- 主遊戲區域 --- */
+#game-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+#game-log {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  scroll-behavior: auto;
+  border-left: 1px solid #222;
+  border-right: 1px solid #222;
+  background: #050505;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.1);
+  padding-bottom: 60px;
+  /* 防止被計時條遮擋 */
+}
+
+.log-entry {
+  margin-bottom: 15px;
+  line-height: 1.6;
+  border-left: 2px solid transparent;
+  padding-left: 8px;
+}
+
+.log-entry.system {
+  color: #666;
+  font-style: italic;
+  border-color: #444;
+  font-size: 0.9em;
+}
+
+.log-entry.event {
+  color: var(--text-color);
+}
+
+.log-entry.danger {
+  color: #e53935;
+  border-color: #b71c1c;
+  background: linear-gradient(90deg, rgba(183, 28, 28, 0.1), transparent);
+  text-shadow: 0 0 8px rgba(229, 57, 53, 0.4);
+}
+
+.log-entry.success {
+  color: #66bb6a;
+  border-color: #2e7d32;
+  text-shadow: 0 0 5px rgba(102, 187, 106, 0.3);
+}
+
+.log-entry.insane {
+  color: #bf360c;
+  font-family: "Impact", sans-serif;
+  letter-spacing: 1px;
+  transform: skewX(-5deg);
+  text-shadow: 2px 2px 0px #000;
+}
+
+.cursor::after {
+  content: "█";
+  animation: cursor-blink 0.8s infinite;
+  margin-left: 2px;
+  color: var(--highlight-color);
+  vertical-align: middle;
+}
+
+@keyframes cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+/* --- 恐慌計時條 (Panic Bar) --- */
+#panic-container {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background: #222;
+  margin-bottom: 0;
+  display: none;
+  /* 預設隱藏 */
+  z-index: 50;
+}
+
+#panic-bar {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #4caf50, #ff9800, #f44336);
+  transform-origin: left;
+  transition: width 0.1s linear;
+}
+
+#panic-text {
+  position: absolute;
+  top: -25px;
+  right: 10px;
+  color: #d32f2f;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  animation: blink 0.5s infinite;
+}
+
+/* --- 選項按鈕區 --- */
+#choices-area {
+  background-color: #0c0c0c;
+  padding: 15px;
+  border-top: 1px solid var(--border-color);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  max-height: 45vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+#choices-area.show {
+  opacity: 1;
+}
+
+button {
+  background: linear-gradient(90deg, #111, #0a0a0a);
+  color: #ccc;
+  border: 1px solid #333;
+  padding: 16px 20px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 1rem;
+  transition: all 0.15s;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: #333;
+  transition: all 0.2s;
+}
+
+button:hover:not(:disabled) {
+  background: #1a1a1a;
+  color: #fff;
+  padding-left: 25px;
+  border-color: #555;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+button:hover:not(:disabled)::before {
+  background: var(--highlight-color);
+  width: 6px;
+  box-shadow: 0 0 10px var(--highlight-color);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  filter: grayscale(100%);
+}
+
+/* --- 視覺欺詐特效 (Hallucinations) --- */
+.btn-shake {
+  animation: btn-shake 0.5s infinite;
+}
+
+@keyframes btn-shake {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(-2px, 2px);
+  }
+
+  50% {
+    transform: translate(2px, -2px);
+  }
+
+  75% {
+    transform: translate(-2px, -2px);
+  }
+
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+.btn-blur {
+  filter: blur(1.5px);
+  transition: 0.2s;
+}
+
+.btn-blur:hover {
+  filter: blur(0);
+}
+
+.btn-glitch-text {
+  color: transparent !important;
+  text-shadow: 2px 0 #f00, -2px 0 #0ff;
+  position: relative;
+}
+
+button.choice-rest:hover::before {
+  background: #29b6f6;
+  box-shadow: 0 0 10px #29b6f6;
+}
+
+button.choice-insane {
+  border: 1px dashed var(--danger-color);
+  color: var(--danger-color);
+  animation: textShake 2s infinite;
+}
+
+#action-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  background: #1a1a1a;
+  border: 1px solid #444;
+  color: #ddd;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.action-btn:hover {
+  background: #333;
+  border-color: #888;
+  color: #fff;
+}
+
+/* --- 啟動遮罩 --- */
+#start-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  color: #fff;
+  cursor: pointer;
+}
+
+#start-overlay h1 {
+  color: var(--danger-color);
+  text-shadow: 0 0 10px red;
+  letter-spacing: 5px;
+  text-align: center;
+}
+
+#start-overlay p {
+  color: #888;
+  animation: blink 1.5s infinite;
+  margin-top: 10px;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* --- 模態視窗 --- */
+.modal {
+  display: none;
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  width: 100%;
+  height: calc(100% - var(--header-height));
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 100;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.modal-content {
+  background: #0f0f0f;
+  border: 1px solid var(--border-color);
+  padding: 25px;
+  width: 90%;
+  max-width: 650px;
+  max-height: 90%;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 1);
+}
+
+.close-btn {
+  position: sticky;
+  top: 0;
+  float: right;
+  background: #222;
+  padding: 2px 12px;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 10;
+  border: 1px solid #555;
+}
+
+h2 {
+  margin-top: 0;
+  border-bottom: 1px solid #444;
+  padding-bottom: 10px;
+  color: var(--highlight-color);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.rule-list {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.rule-list li {
+  margin-bottom: 18px;
+  padding: 10px;
+  border-left: 3px solid #333;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.02);
+  transition: 0.3s;
+}
+
+.rule-list li:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-left-color: #555;
+}
+
+.rule-corrupted {
+  color: var(--danger-color);
+  font-weight: bold;
+  background: rgba(244, 67, 54, 0.05);
+  display: block;
+  padding: 5px;
+  border: 1px dashed rgba(244, 67, 54, 0.3);
+}
+
+.rule-scratched {
+  text-decoration: line-through;
+  color: var(--dim-color);
+  opacity: 0.6;
+}
+
+.scribble {
+  font-family: "Impact", sans-serif;
+  color: #ef5350;
+  transform: rotate(-2deg);
+  display: inline-block;
+  text-shadow: 1px 1px 0 #000;
+}
+
+@keyframes textShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-2px);
+  }
+
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+.glitch-text {
+  position: relative;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.7;
+}
+
+.glitch-text::before {
+  color: #f0f;
+  transform: translate(-2px, 0);
+  animation: glitch-anim-1 2s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+  color: #0ff;
+  transform: translate(2px, 0);
+  animation: glitch-anim-2 3s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim-1 {
+  0% {
+    clip-path: inset(20% 0 80% 0);
+  }
+
+  100% {
+    clip-path: inset(80% 0 20% 0);
+  }
+}
+
+@keyframes glitch-anim-2 {
+  0% {
+    clip-path: inset(10% 0 90% 0);
+  }
+
+  100% {
+    clip-path: inset(90% 0 10% 0);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 0;
+  border: 1px solid #111;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.game-over-screen {
+  text-align: center;
+  padding: 20px;
+  animation: fadeIn 2s;
+}
+
+.game-over-title {
+  font-size: 2.5rem;
+  color: var(--danger-color);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 5px;
+  text-shadow: 0 0 20px var(--danger-color);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* --- 新增：CCTV 監控系統樣式 --- */
+#cctv-modal .modal-content {
+  background: #001100;
+  /* 深綠色背景 */
+  border: 2px solid #0f0;
+  box-shadow: 0 0 20px #0f0, inset 0 0 50px #000;
+  color: #0f0;
+  font-family: "VT323", monospace;
+  /* 如果有引入字體最好，沒有就用預設 */
+  text-shadow: 0 0 5px #0f0;
+  max-width: 800px;
+}
+
+#cctv-screen {
+  width: 100%;
+  height: 300px;
+  background: #000;
+  border: 1px solid #004400;
+  margin-bottom: 15px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 1px,
+    #001100 1px,
+    #001100 2px
+  );
+}
+
+.cctv-noise {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.15"/%3E%3C/svg%3E');
+  pointer-events: none;
+  z-index: 5;
+  animation: staticNoise 0.2s infinite;
+}
+
+#cctv-content {
+  z-index: 2;
+  text-align: center;
+  font-size: 1.2rem;
+  padding: 20px;
+}
+
+.cam-btn-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.cam-btn {
+  background: #002200;
+  border: 1px solid #006600;
+  color: #00aa00;
+  padding: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: 0.2s;
+}
+
+.cam-btn:hover {
+  background: #004400;
+  color: #0f0;
+  box-shadow: 0 0 10px #0f0;
+}
+
+.cam-btn.active {
+  background: #0f0;
+  color: #000;
+  font-weight: bold;
+}
+
+.cam-btn.danger-cam {
+  border-color: red;
+  color: red;
+  animation: blink 1s infinite;
+}
+
+/* --- 新增：UI 欺詐特效 --- */
+.btn-runaway {
+  position: absolute !important;
+  /* 強制絕對定位以便移動 */
+  transition: top 0.1s, left 0.1s;
+  z-index: 1000;
+  background: #220000 !important;
+  /* 警示色 */
+  border-color: red !important;
+}
+
+.fake-stat {
+  animation: stat-glitch 0.3s infinite;
+  color: red !important;
+}
+
+@keyframes stat-glitch {
+  0% {
+    opacity: 1;
+    transform: translate(0);
+  }
+
+  20% {
+    opacity: 0.8;
+    transform: translate(-2px, 2px);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translate(2px, -1px);
+  }
+
+  60% {
+    opacity: 0.9;
+    transform: translate(-1px, 2px);
+  }
+
+  80% {
+    opacity: 1;
+    transform: translate(1px, -2px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(0);
+  }
+}
+
+#btn-cctv {
+  border: 1px solid #0f0;
+  /* 亮綠色邊框 */
+  color: #0f0;
+  /* 亮綠色文字 */
+  background: rgba(0, 50, 0, 0.6);
+  /* 深綠色半透明背景 */
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+  /* 微微發光 */
+  font-weight: bold;
+  margin-right: 10px;
+  /* 跟右邊的按鈕拉開一點距離 */
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+}
+
+#btn-cctv:hover {
+  background: #0f0;
+  /* 滑鼠移過去變全綠 */
+  color: #000;
+  /*文字變黑 */
+  box-shadow: 0 0 20px #0f0;
+  /* 強烈發光 */
+  transform: scale(1.05);
+  /* 稍微放大 */
+}
+
+/* --- 手機版終極修正 (針對按鈕消失問題) --- */
+@media (max-width: 768px) {
+  /* 1. 修正高度問題：使用 dvh (Dynamic Viewport Height) 
+ 這能自動扣除手機瀏覽器網址列的高度 */
+  body {
+    height: 100dvh;
+    overflow: hidden;
+    /* 禁止整體捲動，只讓對話框捲動 */
+  }
+
+  /* 2. 壓縮頂部資訊欄：手機直向空間寶貴，要變緊湊 */
+  header {
+    height: auto;
+    padding: 5px 10px;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+    /* 字體縮小 */
+    gap: 5px;
+    justify-content: space-between;
+  }
+
+  .status-group {
+    flex-direction: row;
+    /* 保持橫向 */
+    gap: 10px;
+    width: 100%;
+    justify-content: space-between;
+    border-bottom: 1px solid #222;
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+  }
+
+  /* 隱藏裝飾性的標籤，只顯示數值，節省空間 */
+  .status-item {
+    display: flex;
+    align-items: center;
+  }
+
+  /* 3. 確保遊戲主區域正確伸縮 */
+  #game-container {
+    flex: 1;
+    /* 佔據剩餘空間 */
+    min-height: 0;
+    /* 關鍵：防止內容過長時撐開容器導致按鈕被推走 */
+    display: flex;
+    flex-direction: column;
+  }
+
+  #game-log {
+    flex: 1;
+    overflow-y: auto;
+    /* 只有這裡可以捲動 */
+    padding: 15px;
+    font-size: 0.95rem;
+    /* 增加底部留白，防止文字貼底 */
+    padding-bottom: 20px;
+  }
+
+  /* 4. 固定並優化按鈕區 */
+  #choices-area {
+    flex-shrink: 0;
+    /* 關鍵：禁止此區域被壓縮或推擠 */
+    max-height: 40vh;
+    /* 限制最大高度 */
+    padding: 10px;
+    background: #0c0c0c;
+    border-top: 1px solid #333;
+    z-index: 100;
+    /* 確保浮在最上層 */
+
+    /* 針對 iPhone X 以上的底部橫條 (Home Indicator) 避讓 */
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  button {
+    padding: 12px 15px;
+    /* 適中大小 */
+    font-size: 1rem;
+    margin-bottom: 8px;
+  }
+
+  /* 5. 監控與功能按鈕優化 */
+  #action-bar {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+  }
+
+  .action-btn {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+  }
+
+  /* 6. CCTV 視窗調整 */
+  #cctv-modal .modal-content {
+    height: 80vh;
+    width: 95vw;
+    margin-top: 10vh;
+  }
+
+  #cctv-screen {
+    height: 180px;
+  }
+
+  .cam-btn-group {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .cam-btn {
+    padding: 8px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 1. 提升層級：確保監控視窗浮在所有特效(掃描線)之上，才好點擊 */
+  .modal {
+    z-index: 2000 !important;
+  }
+
+  /* 2. 彈窗佈局改為「彈性盒子」，讓內容自動適應高度 */
+  #cctv-modal .modal-content {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 95vw;
+    height: 85dvh;
+    /* 使用動態高度，留一點邊距 */
+    max-height: none;
+    /* 解除限制 */
+
+    display: flex;
+    flex-direction: column;
+    /* 垂直排列 */
+    overflow: hidden;
+    /* 禁止整個大框框捲動 */
+    padding: 15px;
+  }
+
+  /* 3. 標題與警告文字：固定不縮放 */
+  #cctv-modal h2 {
+    flex-shrink: 0;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+  }
+
+  #cctv-modal .modal-content > div:last-child {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    margin-top: 5px;
+  }
+
+  /* 4. 監控螢幕：固定高度，避免太佔位 */
+  #cctv-screen {
+    flex-shrink: 0;
+    height: 30vh;
+    /* 佔據螢幕約 1/3 */
+    min-height: 180px;
+    margin-bottom: 10px;
+  }
+
+  /* 5. 關鍵修復：按鈕區域設為「可獨立捲動」 */
+  #cctv-controls {
+    flex: 1;
+    /* 佔據剩下的所有空間 */
+    overflow-y: auto;
+    /* 只有這個區域可以滑動！ */
+    -webkit-overflow-scrolling: touch;
+    /* iOS 滑動優化 */
+
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    /* 按鈕排成兩列 */
+    gap: 8px;
+    align-content: start;
+    /* 按鈕靠上對齊 */
+    padding-right: 5px;
+    /* 留給捲軸一點空間 */
+  }
+
+  /* 讓按鈕更好按 */
+  .cam-btn {
+    padding: 15px 5px;
+    min-height: 50px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 讓「鎖定空間並更新」按鈕橫跨兩欄，特別顯眼 */
+  .cam-btn:last-child {
+    grid-column: 1 / -1;
+    /* 橫跨所有欄位 */
+    margin-top: 5px;
+    background: rgba(0, 50, 0, 0.8);
+    border: 1px dashed #0f0;
+  }
+}
