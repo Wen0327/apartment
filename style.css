@@ -8,6 +8,8 @@
   --panel-bg: #0a0a0a;
   --border-color: #333;
   --header-height: 70px;
+
+  --fl-green: #0f0;
 }
 
 * {
@@ -504,8 +506,9 @@ button.choice-insane {
 }
 
 .close-btn {
-  position: sticky;
-  top: 0;
+  position: absolute;
+  top: auto;
+  right:15px;
   float: right;
   background: #222;
   padding: 2px 12px;
@@ -676,12 +679,12 @@ h2 {
 #cctv-modal .modal-content {
   background: #001100;
   /* 深綠色背景 */
-  border: 2px solid #0f0;
-  box-shadow: 0 0 20px #0f0, inset 0 0 50px #000;
-  color: #0f0;
+  border: 2px solid var(--fl-green);
+  box-shadow: 0 0 20px var(--fl-green), inset 0 0 50px #000;
+  color: var(--fl-green);
   font-family: "VT323", monospace;
   /* 如果有引入字體最好，沒有就用預設 */
-  text-shadow: 0 0 5px #0f0;
+  text-shadow: 0 0 5px var(--fl-green);
   max-width: 800px;
 }
 
@@ -742,12 +745,12 @@ h2 {
 
 .cam-btn:hover {
   background: #004400;
-  color: #0f0;
-  box-shadow: 0 0 10px #0f0;
+  color: var(--fl-green);
+  box-shadow: 0 0 10px var(--fl-green);
 }
 
 .cam-btn.active {
-  background: #0f0;
+  background: var(--fl-green);
   color: #000;
   font-weight: bold;
 }
@@ -807,9 +810,9 @@ h2 {
 }
 
 #btn-cctv {
-  border: 1px solid #0f0;
+  border: 1px solid var(--fl-green);
   /* 亮綠色邊框 */
-  color: #0f0;
+  color: var(--fl-green);
   /* 亮綠色文字 */
   background: rgba(0, 50, 0, 0.6);
   /* 深綠色半透明背景 */
@@ -823,11 +826,11 @@ h2 {
 }
 
 #btn-cctv:hover {
-  background: #0f0;
+  background: var(--fl-green);
   /* 滑鼠移過去變全綠 */
   color: #000;
   /*文字變黑 */
-  box-shadow: 0 0 20px #0f0;
+  box-shadow: 0 0 20px var(--fl-green);
   /* 強烈發光 */
   transform: scale(1.05);
   /* 稍微放大 */
@@ -1031,6 +1034,14 @@ h2 {
     /* 橫跨所有欄位 */
     margin-top: 5px;
     background: rgba(0, 50, 0, 0.8);
-    border: 1px dashed #0f0;
+    border: 1px dashed var(--fl-green);
   }
+}
+
+.cctv-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: var(--fl-green);
+  font-size: 0.8rem;
 }

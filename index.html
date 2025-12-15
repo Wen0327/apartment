@@ -63,7 +63,7 @@
 
     <div id="cctv-modal" class="modal">
       <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('cctv-modal')"
+        <span class="close-btn" style="top:5px" onclick="closeModal('cctv-modal')"
           >&times;</span
         >
         <h2 style="border-bottom: 2px dashed #0f0; color: #0f0">
@@ -72,18 +72,7 @@
 
         <div id="cctv-screen">
           <div class="cctv-noise"></div>
-          <div
-            id="cctv-overlay"
-            style="
-              position: absolute;
-              top: 10px;
-              left: 10px;
-              color: #0f0;
-              font-size: 0.8rem;
-            "
-          >
-            REC ●
-          </div>
+          <div id="cctv-overlay" class="cctv-overlay">REC ●</div>
           <div id="cctv-content">系統待機中...<br />選擇攝像頭接入信號</div>
         </div>
 
@@ -221,6 +210,7 @@
     </div>
 
     <script type="module">
+
       // --- 音效系統 (Web Audio API) ---
       import { SoundSystem } from "./System/SoundSystem.js";
       // --- 遊戲核心數據 ---
