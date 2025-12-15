@@ -1,5 +1,5 @@
 import { GameState } from "../Config/GameState.js";
-import { SoundSystem } from "../System/SoundSystem.js";
+import { SoundSystem } from "./SoundSystem.js";
 import { log, changeStat, typeWriter } from "../Utils/GameUtils.js";
 
 export const CCTVSystem = {
