@@ -325,7 +325,7 @@ button {
   font-family: inherit;
   font-size: 1rem;
   transition: all 0.15s;
-  width: 100%;
+  /* width: 100%; */
   position: relative;
   overflow: hidden;
 }
