@@ -52,8 +52,7 @@
           筆記
         </button>
         <button
-          class="action-btn"
-          style="color: #ff9800; border-color: #ff9800"
+          class="action-btn orange-btn"
           onclick="openModal('credits-modal')"
         >
           作者
@@ -63,7 +62,10 @@
 
     <div id="cctv-modal" class="modal">
       <div class="modal-content">
-        <span class="close-btn" style="top:5px" onclick="closeModal('cctv-modal')"
+        <span
+          class="close-btn"
+          style="top: 5px"
+          onclick="closeModal('cctv-modal')"
           >&times;</span
         >
         <h2 style="border-bottom: 2px dashed #0f0; color: #0f0">
@@ -190,27 +192,13 @@
             target="_blank"
             style="text-decoration: none"
           >
-            <button
-              style="
-                width: 100%;
-                padding: 15px;
-                background: #1a1a00;
-                color: #ffdd00;
-                border: 1px solid #ffdd00;
-                cursor: pointer;
-                font-family: inherit;
-                font-weight: bold;
-              "
-            >
-              <span>⚔️</span> 贊助我前進
-            </button>
+            <button class="support-btn"><span>⚔️</span> 贊助我前進</button>
           </a>
         </div>
       </div>
     </div>
 
     <script type="module">
-
       // --- 音效系統 (Web Audio API) ---
       import { SoundSystem } from "./System/SoundSystem.js";
       // --- 遊戲核心數據 ---
@@ -650,7 +638,7 @@
                 <div class="game-over-screen">
                     <div class="game-over-title">${title}</div>
                     <p>${reason}</p>
-                    <button onclick="location.reload()" style="margin-top:20px; border-color: red;">重新輪迴</button>
+                    <button onclick="location.reload()"class="reincarnation-btn" style="margin-top:20px; border-color: red;">重新輪迴</button>
                 </div>
             `;
           area.classList.add("show");

@@ -9,6 +9,7 @@
   --border-color: #333;
   --header-height: 70px;
 
+  --white: #fff;
   --fl-green: #0f0;
 }
 
@@ -38,11 +39,9 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(
-    circle,
-    rgba(0, 0, 0, 0) 50%,
-    rgba(0, 0, 0, 0.8) 100%
-  );
+  background: radial-gradient(circle,
+      rgba(0, 0, 0, 0) 50%,
+      rgba(0, 0, 0, 0.8) 100%);
   pointer-events: none;
   z-index: 998;
 }
@@ -54,12 +53,10 @@ body {
   width: 100vw;
   height: 100vh;
   background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-    linear-gradient(
-      90deg,
+    linear-gradient(90deg,
       rgba(255, 0, 0, 0.06),
       rgba(0, 255, 0, 0.02),
-      rgba(0, 0, 255, 0.06)
-    );
+      rgba(0, 0, 255, 0.06));
   background-size: 100% 2px, 3px 100%;
   pointer-events: none;
   z-index: 999;
@@ -256,6 +253,7 @@ header {
 }
 
 @keyframes cursor-blink {
+
   0%,
   100% {
     opacity: 1;
@@ -345,8 +343,7 @@ button::before {
 
 button:hover:not(:disabled) {
   background: #1a1a1a;
-  color: #fff;
-  padding-left: 25px;
+  color: var(--white);
   border-color: #555;
   text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
 }
@@ -438,7 +435,7 @@ button.choice-insane {
 .action-btn:hover {
   background: #333;
   border-color: #888;
-  color: #fff;
+  color: var(--white);
 }
 
 /* --- 啟動遮罩 --- */
@@ -454,7 +451,7 @@ button.choice-insane {
   justify-content: center;
   align-items: center;
   flex-direction: column;
-  color: #fff;
+  color: var(--white);
   cursor: pointer;
 }
 
@@ -508,11 +505,11 @@ button.choice-insane {
 .close-btn {
   position: absolute;
   top: auto;
-  right:15px;
+  right: 15px;
   float: right;
   background: #222;
   padding: 2px 12px;
-  color: #fff;
+  color: var(--white);
   font-size: 24px;
   cursor: pointer;
   z-index: 10;
@@ -571,6 +568,7 @@ h2 {
 }
 
 @keyframes textShake {
+
   0%,
   100% {
     transform: translateX(0);
@@ -699,13 +697,11 @@ h2 {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 1px,
-    #001100 1px,
-    #001100 2px
-  );
+  background-image: repeating-linear-gradient(0deg,
+      transparent,
+      transparent 1px,
+      #001100 1px,
+      #001100 2px);
 }
 
 .cctv-noise {
@@ -838,6 +834,7 @@ h2 {
 
 /* --- 手機版終極修正 (針對按鈕消失問題) --- */
 @media (max-width: 768px) {
+
   /* 1. 修正高度問題：使用 dvh (Dynamic Viewport Height) 
  這能自動扣除手機瀏覽器網址列的高度 */
   body {
@@ -952,6 +949,7 @@ h2 {
 }
 
 @media (max-width: 768px) {
+
   /* 1. 提升層級：確保監控視窗浮在所有特效(掃描線)之上，才好點擊 */
   .modal {
     z-index: 2000 !important;
@@ -984,7 +982,7 @@ h2 {
     font-size: 1.1rem;
   }
 
-  #cctv-modal .modal-content > div:last-child {
+  #cctv-modal .modal-content>div:last-child {
     flex-shrink: 0;
     font-size: 0.75rem;
     margin-top: 5px;
@@ -1044,4 +1042,40 @@ h2 {
   left: 10px;
   color: var(--fl-green);
   font-size: 0.8rem;
+}
+
+.orange-btn {
+  color: #ff9800;
+  border-color: #ff9800;
+}
+
+.orange-btn:hover:not(:disabled)::before {
+  background: #ff9800;
+  box-shadow: 0 0 10px #ff9800;
+}
+
+.support-btn {
+  width: 100%;
+  padding: 15px;
+  background: #1a1a00;
+  color: #ffdd00;
+  border: 1px solid #ffdd00;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+}
+
+.support-btn:hover:not(:disabled)::before {
+  background: #ffdd00;
+  box-shadow: 0 0 10px #ffdd00;
+}
+
+.reincarnation-btn {
+  margin-top: 20px;
+  border-color: red
+}
+
+.reincarnation-btn:hover:not(:disabled)::before {
+  background: red;
+  box-shadow: 0 0 10px red;
 }
