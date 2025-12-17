@@ -215,7 +215,7 @@ header {
 .log-entry.system {
   color: #666;
   font-style: italic;
-  border-color: #444;
+  border-color: var(--dim-color);
   font-size: 0.9em;
 }
 
@@ -279,7 +279,7 @@ header {
 #panic-bar {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, #4caf50, #ff9800, #f44336);
+  background: linear-gradient(90deg, var(--highlight-color), var(--warning-color), #f44336);
   transform-origin: left;
   transition: width 0.1s linear;
 }
@@ -288,7 +288,7 @@ header {
   position: absolute;
   top: -25px;
   right: 10px;
-  color: #d32f2f;
+  color: var(--danger-color);
   font-size: 0.8rem;
   font-weight: bold;
   text-transform: uppercase;
@@ -316,9 +316,9 @@ header {
 }
 
 button {
-  background: linear-gradient(90deg, #111, #0a0a0a);
+  background: linear-gradient(90deg, #111, var(--panel-bg));
   color: #ccc;
-  border: 1px solid #333;
+  border: 1px solid var(--border-color);
   padding: 16px 20px;
   cursor: pointer;
   text-align: left;
@@ -337,7 +337,7 @@ button::before {
   left: 0;
   width: 4px;
   height: 100%;
-  background: #333;
+  background: var(--border-color);
   transition: all 0.2s;
 }
 
@@ -424,7 +424,7 @@ button.choice-insane {
 
 .action-btn {
   background: #1a1a1a;
-  border: 1px solid #444;
+  border: 1px solid var(--dim-color);
   color: #ddd;
   padding: 6px 14px;
   font-size: 0.8rem;
@@ -433,7 +433,7 @@ button.choice-insane {
 }
 
 .action-btn:hover {
-  background: #333;
+  background: var(--border-color);
   border-color: #888;
   color: var(--white);
 }
@@ -518,7 +518,7 @@ button.choice-insane {
 
 h2 {
   margin-top: 0;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid var(--dim-color);
   padding-bottom: 10px;
   color: var(--highlight-color);
   text-transform: uppercase;
@@ -533,7 +533,7 @@ h2 {
 .rule-list li {
   margin-bottom: 18px;
   padding: 10px;
-  border-left: 3px solid #333;
+  border-left: 3px solid var(--border-color);
   line-height: 1.5;
   background: rgba(255, 255, 255, 0.02);
   transition: 0.3s;
@@ -639,7 +639,7 @@ h2 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--border-color);
   border-radius: 0;
   border: 1px solid #111;
 }
@@ -899,7 +899,7 @@ h2 {
     /* 限制最大高度 */
     padding: 10px;
     background: #0c0c0c;
-    border-top: 1px solid #333;
+    border-top: 1px solid var(--border-color);
     z-index: 100;
     /* 確保浮在最上層 */
 
@@ -1045,13 +1045,13 @@ h2 {
 }
 
 .orange-btn {
-  color: #ff9800;
-  border-color: #ff9800;
+  color: var(--warning-color);
+  border-color: var(--warning-color);
 }
 
 .orange-btn:hover:not(:disabled)::before {
-  background: #ff9800;
-  box-shadow: 0 0 10px #ff9800;
+  background: var(--warning-color);
+  box-shadow: 0 0 10px var(--warning-color);
 }
 
 .support-btn {
